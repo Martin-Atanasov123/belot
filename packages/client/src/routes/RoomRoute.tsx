@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { useGame } from '../store/game.js'
-import { getNickname, getPlayerId } from '../lib/identity.js'
+import { getNickname, getPlayerIdFor } from '../lib/identity.js'
 import { Lobby } from '../components/Lobby.js'
 import { Table } from '../components/Table.js'
 
@@ -17,7 +17,7 @@ export function RoomRoute() {
   useEffect(() => {
     if (!code) return
     const nick = getNickname() || 'Гост'
-    void join({ code, playerId: getPlayerId(), nickname: nick, isHost })
+    void join({ code, playerId: getPlayerIdFor(nick), nickname: nick, isHost })
   }, [code, isHost, join])
 
   if (joinError) {

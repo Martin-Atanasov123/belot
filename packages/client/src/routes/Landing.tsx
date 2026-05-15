@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createRoom } from '../lib/api.js'
-import { getNickname, getPlayerId, setNickname } from '../lib/identity.js'
+import { getNickname, getPlayerIdFor, setNickname } from '../lib/identity.js'
 
 export function Landing() {
   const nav = useNavigate()
@@ -24,7 +24,7 @@ export function Landing() {
     if (!persistNick()) return
     setBusy(true); setError(null)
     try {
-      const { code } = await createRoom(getPlayerId())
+      const { code } = await createRoom(getPlayerIdFor(nick.trim()))
       nav(`/r/${code}?host=1`)
     } catch (e) {
       setError((e as Error).message)

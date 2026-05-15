@@ -16,6 +16,7 @@ import {
   createRoom,
   findFreeSeat,
   findSeatByPlayerId,
+  noOccupantsConnected,
   publicState,
   setConnected,
   snapshotForSeat,
@@ -74,6 +75,24 @@ const io = new SocketIOServer(server, {
 })
 
 const TURN_TIMER_MS = 30_000
+const ROOM_EMPTY_GRACE_MS = 60_000 // delete a room 60s after all sockets disconnect
+
+function cancelEmptyTimer(room: Room) {
+  if (room.emptyTimer) {
+    clearTimeout(room.emptyTimer)
+    room.emptyTimer = null
+  }
+}
+
+function scheduleEmptyTimer(room: Room) {
+  if (room.emptyTimer) return
+  room.emptyTimer = setTimeout(() => {
+    if (!noOccupantsConnected(room)) return
+    clearTimer(room)
+    rooms.delete(room.code)
+    app.log.info({ code: room.code }, 'deleted empty room')
+  }, ROOM_EMPTY_GRACE_MS)
+}
 
 function broadcastRoomState(room: Room) {
   io.to(`room:${room.code}`).emit('room:state', publicState(room))
@@ -150,6 +169,7 @@ io.on('connection', (socket) => {
     playerId = parsed.data.playerId
     socket.join(`room:${room.code}`)
     socket.join(`player:${playerId}`)
+    cancelEmptyTimer(room)
 
     cb({ ok: true, seat, state: publicState(room) })
     broadcastRoomState(room)
@@ -190,6 +210,7 @@ io.on('connection', (socket) => {
     if (!room) return
     setConnected(room, playerId, false)
     broadcastRoomState(room)
+    if (noOccupantsConnected(room)) scheduleEmptyTimer(room)
   })
 })
 

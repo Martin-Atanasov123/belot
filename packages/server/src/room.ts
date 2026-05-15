@@ -29,6 +29,15 @@ export type Room = {
   snapshot: GameSnapshot | null
   createdAt: number
   turnTimer: NodeJS.Timeout | null
+  emptyTimer: NodeJS.Timeout | null
+}
+
+export function noOccupantsConnected(room: Room): boolean {
+  for (const s of [0, 1, 2, 3] as Seat[]) {
+    const occ = room.seats[s]
+    if (occ && occ.connected) return false
+  }
+  return true
 }
 
 export type PublicRoomState = {
@@ -47,6 +56,7 @@ export function createRoom(code: string, hostId: string, settings: Partial<RoomS
     snapshot: null,
     createdAt: Date.now(),
     turnTimer: null,
+    emptyTimer: null,
   }
 }
 

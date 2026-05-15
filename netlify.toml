@@ -1,0 +1,13 @@
+[build]
+  base    = "packages/client"
+  command = "npm install --prefix ../.. --workspaces --include-workspace-root --no-audit --no-fund && npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# SPA fallback so /r/ABC123 deep links work in production.
+[[redirects]]
+  from = "/*"
+  to   = "/index.html"
+  status = 200

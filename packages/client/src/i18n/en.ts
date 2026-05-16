@@ -66,11 +66,18 @@ export const en: Record<MessageKey, string> = {
   'table.carre':         'Carré {rank}',
   'table.seqOf':         '{n} in {suit}',
 
-  'bid.waitFor':         'Waiting for seat {n}…',
+  'bid.waitFor':         'Waiting — {name}',
   'bid.yourTurn':        'Bidding — your turn',
   'bid.pass':            'Pass',
   'bid.contra':          'Contra',
   'bid.recontra':        'Re-contra',
+  'bid.lastBidLabel':    'Highest bid',
+  'bid.noBidYet':        'No bid yet',
+  'bid.pass.short':      'PASS',
+
+  'table.onTurn':        'Turn',
+  'table.waitingFor':    'Waiting on',
+  'table.collected':     'Won by',
 
   'suit.C.name':         'Clubs',
   'suit.D.name':         'Diamonds',

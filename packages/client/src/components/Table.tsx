@@ -6,11 +6,11 @@ import { CardView } from './Card.js'
 import { BiddingPanel } from './BiddingPanel.js'
 import { CornerOrnament, Monogram } from './Ornaments.js'
 import { LanguageToggle } from './LanguageToggle.js'
-import type { Card, Seat } from '@belot/shared'
+import type { BidContract, BidHistoryEntry, Card, Seat } from '@belot/shared'
 import type { MessageKey } from '../i18n/bg.js'
 
 const SUIT_GLYPH: Record<string, string> = { C: '♣', D: '♦', H: '♥', S: '♠' }
-const CONTRACT_GLYPH: Record<string, { glyph: string; red: boolean }> = {
+const CONTRACT_GLYPH: Record<BidContract, { glyph: string; red: boolean }> = {
   C:  { glyph: '♣', red: false },
   D:  { glyph: '♦', red: true  },
   H:  { glyph: '♥', red: true  },
@@ -21,7 +21,6 @@ const CONTRACT_GLYPH: Record<string, { glyph: string; red: boolean }> = {
 
 type Pos = 'bottom' | 'left' | 'top' | 'right'
 
-// Compact viewport hook — picks layout densities for the play zone.
 function useIsMobile() {
   const [isMobile, set] = useState(() =>
     typeof window === 'undefined' ? false : window.matchMedia('(max-width: 640px)').matches,
@@ -35,7 +34,6 @@ function useIsMobile() {
   return isMobile
 }
 
-// Card landing offsets within the felt circle. Mobile uses a tighter radius.
 function playOffset(pos: Pos, mobile: boolean): { x: number; y: number; rot: number } {
   const r = mobile ? 34 : 48
   switch (pos) {
@@ -44,6 +42,49 @@ function playOffset(pos: Pos, mobile: boolean): { x: number; y: number; rot: num
     case 'left':   return { x: -r, y:  0, rot: -10 }
     case 'right':  return { x:  r, y:  0, rot:  10 }
   }
+}
+
+// Off-the-felt landing point used both for incoming slide-in and for the
+// "collected by the winner" slide-out.
+function offFelt(pos: Pos, mobile: boolean): { x: number; y: number } {
+  const big = mobile ? 110 : 150
+  switch (pos) {
+    case 'bottom': return { x: 0,    y:  big }
+    case 'top':    return { x: 0,    y: -big }
+    case 'left':   return { x: -big, y:    0 }
+    case 'right':  return { x:  big, y:    0 }
+  }
+}
+
+// Last action per seat from the bid history (used during BIDDING to show what each player said).
+type SeatBidAction =
+  | { type: 'BID'; contract: BidContract }
+  | { type: 'PASS' }
+  | { type: 'CONTRA' }
+  | { type: 'RECONTRA' }
+  | null
+
+function lastActionsPerSeat(history: BidHistoryEntry[]): Record<Seat, SeatBidAction> {
+  const out: Record<Seat, SeatBidAction> = { 0: null, 1: null, 2: null, 3: null }
+  for (const h of history) {
+    const s = h.seat as Seat
+    if (h.type === 'BID') out[s] = { type: 'BID', contract: h.contract }
+    else if (h.type === 'PASS') out[s] = { type: 'PASS' }
+    else if (h.type === 'CONTRA') out[s] = { type: 'CONTRA' }
+    else if (h.type === 'RECONTRA') out[s] = { type: 'RECONTRA' }
+  }
+  return out
+}
+
+function lastBidEntry(history: BidHistoryEntry[]):
+  | { type: 'BID'; seat: Seat; contract: BidContract }
+  | null
+{
+  for (let i = history.length - 1; i >= 0; i--) {
+    const h = history[i]!
+    if (h.type === 'BID') return { type: 'BID', seat: h.seat as Seat, contract: h.contract }
+  }
+  return null
 }
 
 export function Table() {
@@ -81,28 +122,42 @@ export function Table() {
     void send({ type: 'PLAY', seat: mySeat, card })
   }
 
-  // ── Seat badge — compact on mobile, full on desktop. ─────────────────────
+  // While 4 cards sit on the felt, `view.turn` already points at the winner-elect
+  // (set by the engine when the trick becomes complete). We use that as the
+  // collection target so the exit animation slides the cards toward them.
+  const collectionWinnerPos: Pos | null =
+    trickPlays.length === 4 ? visualSeat(view.turn) : null
+
+  const actionsBySeat = useMemo(
+    () => lastActionsPerSeat(view.bidHistory),
+    [view.bidHistory],
+  )
+  const liveBid = lastBidEntry(view.bidHistory)
+
+  // ── Seat badge — name + small status (no "Място N" anymore) ──────────────
   const SeatBadge = ({ pos, compact = false }: { pos: Pos; compact?: boolean }) => {
     const seat = seatByPos[pos]
     const occ = room.seats[seat]
     const isActive = view.turn === seat && (inBidding || inPlay)
-    const size = compact ? 'px-2 py-1 min-w-[80px]' : 'px-3 py-2 min-w-[100px] sm:min-w-[120px]'
+    const myBadge = seat === mySeat
+    const size = compact ? 'px-2 py-1 min-w-[90px]' : 'px-3 py-2 min-w-[110px] sm:min-w-[130px]'
+    const lastAct = inBidding ? actionsBySeat[seat] : null
+
     return (
       <motion.div
         layout
         className={`relative plate ${size} inline-flex flex-col items-center gap-0.5 ${
           isActive ? 'seat-active' : ''
         }`}
+        {...(isActive ? { style: { borderColor: 'rgba(230,193,120,0.85)' } } : {})}
       >
-        <div className={`eyebrow text-ash ${compact ? 'text-[8px]' : 'text-[9px] sm:text-[10px]'}`}>
-          {t('lobby.seat')} {seat + 1}
-        </div>
         <div className={`font-display text-cream leading-tight truncate ${
-          compact ? 'text-xs max-w-[80px]' : 'text-sm sm:text-base max-w-[110px] sm:max-w-[150px]'
-        }`}>
+          compact ? 'text-sm max-w-[100px]' : 'text-base sm:text-lg max-w-[140px] sm:max-w-[170px]'
+        } ${myBadge ? 'text-brass-hi' : ''}`}>
           {occ?.nickname ?? '—'}
         </div>
-        <div className="flex items-center gap-1 mt-0.5">
+
+        <div className="flex items-center gap-1.5 mt-0.5">
           <span className={`font-mono text-brass tracking-[0.14em] ${compact ? 'text-[8px]' : 'text-[9px] sm:text-[10px]'}`}>
             {view.handCounts[seat]} {t('table.cards')}
           </span>
@@ -117,6 +172,36 @@ export function Table() {
             </span>
           )}
         </div>
+
+        {/* Bidding bubble — sits above the badge, points at it */}
+        {lastAct && (
+          <AnimatePresence>
+            <motion.div
+              key={`${seat}-${describeAction(lastAct)}`}
+              initial={{ opacity: 0, y: 4, scale: 0.85 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.85 }}
+              transition={{ type: 'spring', stiffness: 280, damping: 22 }}
+              className="absolute -top-7 left-1/2 -translate-x-1/2"
+            >
+              <BidBubble action={lastAct} compact={compact} />
+            </motion.div>
+          </AnimatePresence>
+        )}
+
+        {/* "На ход" chevron — points back at the badge from the felt side */}
+        {isActive && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+            aria-hidden
+            className="absolute left-1/2 -translate-x-1/2 font-mono text-brass-hi text-base leading-none drop-shadow-[0_0_8px_rgba(230,193,120,0.8)]"
+            style={pos === 'top' ? { bottom: -14 } : { top: -14 }}
+          >
+            {pos === 'top' ? '▾' : '▴'}
+          </motion.div>
+        )}
       </motion.div>
     )
   }
@@ -124,21 +209,18 @@ export function Table() {
   const contract = view.contract
     ? { ...CONTRACT_GLYPH[view.contract], name: t(`suit.${view.contract}.name` as MessageKey) }
     : null
-  const turnHolderName = room.seats[view.turn]?.nickname ?? '—'
 
   return (
     <div className="min-h-[100dvh] bg-ink relative overflow-hidden flex flex-col no-select">
       <div className="pointer-events-none absolute inset-0 bg-felt-noise" />
 
-      {/* Corner ornaments — smaller on mobile to save room */}
       <CornerOrnament className="absolute top-2 left-2 w-7 h-7 sm:w-10 sm:h-10 text-brass/30 z-10" />
       <CornerOrnament className="absolute top-2 right-2 w-7 h-7 sm:w-10 sm:h-10 text-brass/30 z-10" style={{ transform: 'scaleX(-1)' } as React.CSSProperties} />
       <CornerOrnament className="absolute bottom-2 left-2 w-7 h-7 sm:w-10 sm:h-10 text-brass/30 z-10" style={{ transform: 'scaleY(-1)' } as React.CSSProperties} />
       <CornerOrnament className="absolute bottom-2 right-2 w-7 h-7 sm:w-10 sm:h-10 text-brass/30 z-10" style={{ transform: 'scale(-1,-1)' } as React.CSSProperties} />
 
-      {/* ── Top bar ── */}
+      {/* Top bar */}
       <header className="relative z-20 border-b border-brass/20 bg-ink/40 backdrop-blur-sm">
-        {/* Row 1: monogram + room + score + lang */}
         <div className="flex items-center justify-between px-2 sm:px-4 py-1.5 sm:py-2 gap-2">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <Monogram size={isMobile ? 22 : 28} />
@@ -168,7 +250,7 @@ export function Table() {
           </div>
         </div>
 
-        {/* Row 2 (mobile only): hand # + contract chip */}
+        {/* Mobile row 2 */}
         <div className="md:hidden flex items-center justify-between px-2 pb-1.5 gap-2 text-xs">
           <div className="font-display italic text-cream/80">
             {t('table.handLabel')} {t('table.handNo', { n: view.handNo })}
@@ -184,7 +266,7 @@ export function Table() {
           )}
         </div>
 
-        {/* Desktop contract chip in row 1 area */}
+        {/* Desktop contract chip on row 1 */}
         <div className="hidden md:flex absolute right-44 top-1/2 -translate-y-1/2">
           {contract ? (
             <div className="chip">
@@ -198,25 +280,27 @@ export function Table() {
         </div>
       </header>
 
-      {/* ── Felt area: top seat / [left+felt+right] / bottom hand+seat ── */}
-      <div className="relative z-10 flex-1 grid grid-rows-[auto_1fr_auto] gap-1 sm:gap-2 px-2 sm:px-4 pt-2 pb-1 sm:pb-3">
-        {/* Top seat */}
+      {/* Felt area */}
+      <div className="relative z-10 flex-1 grid grid-rows-[auto_1fr_auto] gap-1 sm:gap-2 px-2 sm:px-4 pt-3 pb-1 sm:pb-3">
         <div className="flex justify-center">
           <SeatBadge pos="top" compact={isMobile} />
         </div>
 
-        {/* Middle row */}
         <div className="grid grid-cols-[auto_1fr_auto] items-center gap-1 sm:gap-3">
           <div className="flex justify-start">
             <SeatBadge pos="left" compact={isMobile} />
           </div>
-          <PlayZone trickPlays={trickPlays} turnHolderName={turnHolderName} isMobile={isMobile} />
+          <PlayZone
+            trickPlays={trickPlays}
+            isMobile={isMobile}
+            collectionWinnerPos={collectionWinnerPos}
+            liveBid={liveBid}
+          />
           <div className="flex justify-end">
             <SeatBadge pos="right" compact={isMobile} />
           </div>
         </div>
 
-        {/* Bottom: bidding panel + your hand + your badge */}
         <div className="flex flex-col items-center gap-1.5 sm:gap-3">
           {inBidding && <BiddingPanel />}
 
@@ -254,9 +338,9 @@ export function Table() {
             <SeatBadge pos="bottom" compact={isMobile} />
             {isMyTurn && (inBidding || inPlay) && (
               <motion.span
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="font-display italic text-brass text-sm sm:text-lg"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="font-display italic text-brass-hi text-sm sm:text-lg"
               >
                 {t('table.yourTurn')}
               </motion.span>
@@ -268,35 +352,96 @@ export function Table() {
   )
 }
 
-// ── Central play zone ───────────────────────────────────────────────────
+// ── Bidding bubble (per-seat last action) ──────────────────────────────
+function BidBubble({ action, compact }: { action: SeatBidAction; compact: boolean }) {
+  if (!action) return null
+  const base = `inline-flex items-center gap-1 px-2 py-0.5 rounded-full border ${
+    compact ? 'text-[10px]' : 'text-xs'
+  } font-mono tracking-[0.14em] whitespace-nowrap`
+
+  if (action.type === 'PASS') {
+    return (
+      <div className={`${base} bg-stone-900/60 border-stone-500/40 text-stone-300`}>
+        ПАС
+      </div>
+    )
+  }
+  if (action.type === 'CONTRA' || action.type === 'RECONTRA') {
+    return (
+      <div className={`${base} bg-ember/30 border-ember-hi/60 text-ember-hi uppercase`}>
+        {action.type === 'CONTRA' ? 'Контра' : 'Реконтра'}
+      </div>
+    )
+  }
+  const g = CONTRACT_GLYPH[action.contract]
+  const extraLabel = action.contract === 'NT' ? 'NT' : action.contract === 'AT' ? 'AT' : null
+  return (
+    <div className={`${base} bg-cream/95 border-brass-hi text-stone-900`}>
+      <span className={`text-sm leading-none ${g.red ? 'text-ember' : 'text-stone-900'}`}>{g.glyph}</span>
+      {extraLabel && <span>{extraLabel}</span>}
+    </div>
+  )
+}
+
+function describeAction(a: SeatBidAction): string {
+  if (!a) return ''
+  if (a.type === 'BID') return `b:${a.contract}`
+  return a.type.toLowerCase()
+}
+
+// ── Central play zone ──────────────────────────────────────────────────
 function PlayZone({
   trickPlays,
-  turnHolderName,
   isMobile,
+  collectionWinnerPos,
+  liveBid,
 }: {
   trickPlays: Array<{ seat: Seat; card: Card; order: number; pos: Pos }>
-  turnHolderName: string
   isMobile: boolean
+  collectionWinnerPos: Pos | null
+  liveBid: { type: 'BID'; seat: Seat; contract: BidContract } | null
 }) {
   const t = useT()
   const view = useGame((s) => s.view)!
-  const inAction = view.phase === 'PLAYING' || view.phase === 'BIDDING'
+  const room = useGame((s) => s.room)!
+  const inBidding = view.phase === 'BIDDING'
+  const inPlay = view.phase === 'PLAYING'
 
-  const offscreen = (pos: Pos) => {
-    const big = isMobile ? 100 : 140
-    switch (pos) {
-      case 'bottom': return { x: 0, y: big, rot: 0 }
-      case 'top':    return { x: 0, y: -big, rot: 180 }
-      case 'left':   return { x: -big, y: 0, rot: -15 }
-      case 'right':  return { x: big, y: 0, rot: 15 }
+  const offscreenEntry = (pos: Pos) => {
+    const o = offFelt(pos, isMobile)
+    const rot = pos === 'top' ? 180 : pos === 'left' ? -15 : pos === 'right' ? 15 : 0
+    return { x: o.x, y: o.y, rot }
+  }
+
+  // When `collectionWinnerPos` is set (4 cards on the table waiting to resolve),
+  // each card's exit prop slides it toward the winner's edge.
+  const exitFor = (cardPos: Pos) => {
+    if (collectionWinnerPos) {
+      const o = offFelt(collectionWinnerPos, isMobile)
+      const rotate = collectionWinnerPos === 'top' ? 180 : 0
+      return {
+        x: o.x * 0.7,
+        y: o.y * 0.7,
+        scale: 0.5,
+        rotate,
+        opacity: 0,
+        transition: { duration: 0.55, ease: [0.55, 0.06, 0.68, 0.19] as const },
+      }
     }
+    // Fallback: same direction it came from
+    const o = offFelt(cardPos, isMobile)
+    return { x: o.x * 0.5, y: o.y * 0.5, scale: 0.7, opacity: 0, transition: { duration: 0.3 } }
   }
 
   const feltSize = isMobile ? 180 : 240
   const monoSize = isMobile ? 50 : 70
 
+  // Whose turn is it (visible during BIDDING / PLAYING) — name only.
+  const turnHolderName = room.seats[view.turn]?.nickname ?? '—'
+  const liveBidName = liveBid ? room.seats[liveBid.seat]?.nickname ?? '—' : null
+
   return (
-    <div className={`flex items-center justify-center ${isMobile ? 'min-h-[220px]' : 'min-h-[280px] md:min-h-[320px]'}`}>
+    <div className={`flex items-center justify-center ${isMobile ? 'min-h-[230px]' : 'min-h-[300px] md:min-h-[330px]'}`}>
       <div className="relative">
         {/* Felt circle */}
         <div
@@ -319,13 +464,13 @@ function PlayZone({
           <AnimatePresence>
             {trickPlays.map((p) => {
               const dest = playOffset(p.pos, isMobile)
-              const from = offscreen(p.pos)
+              const from = offscreenEntry(p.pos)
               return (
                 <motion.div
                   key={`${p.seat}:${p.card.suit}${p.card.rank}`}
                   initial={{ opacity: 0, x: from.x, y: from.y, rotate: from.rot, scale: 0.85 }}
                   animate={{ opacity: 1, x: dest.x, y: dest.y, rotate: dest.rot, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.7, transition: { duration: 0.25 } }}
+                  exit={exitFor(p.pos)}
                   transition={{ type: 'spring', stiffness: 240, damping: 22 }}
                   style={{ position: 'absolute', zIndex: 10 + p.order, pointerEvents: 'none' }}
                 >
@@ -337,18 +482,39 @@ function PlayZone({
           </AnimatePresence>
         </div>
 
-        {/* Idle overlay */}
-        {trickPlays.length === 0 && inAction && view.phase !== 'GAME_OVER' && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4">
-            <div className="eyebrow text-ash text-[9px] sm:text-[10px]">
-              {view.phase === 'BIDDING' ? t('table.bidding') : t('table.yourTurn').replace(/—/g, '').trim()}
-            </div>
-            <div className="font-display italic text-cream/80 mt-1 text-xs sm:text-sm max-w-[160px] sm:max-w-[200px] truncate">
-              {view.phase === 'BIDDING'
-                ? t('bid.waitFor', { n: view.turn + 1 })
-                : turnHolderName}
-            </div>
+        {/* Idle / turn indicator overlay */}
+        {trickPlays.length === 0 && view.phase !== 'GAME_OVER' && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-3 pointer-events-none">
+            {inBidding ? (
+              <BiddingCenterPanel liveBid={liveBid} liveBidName={liveBidName} turnHolderName={turnHolderName} />
+            ) : inPlay ? (
+              <div>
+                <div className="eyebrow text-ash text-[9px] sm:text-[10px]">{t('table.onTurn')}</div>
+                <div className="font-display italic text-cream text-base sm:text-xl mt-1 truncate max-w-[150px] sm:max-w-[200px]">
+                  {turnHolderName}
+                </div>
+              </div>
+            ) : null}
           </div>
+        )}
+
+        {/* Mid-play "waiting for X" — shown when trick has 1..3 cards (in tens etc.) */}
+        {inPlay && trickPlays.length > 0 && trickPlays.length < 4 && (
+          <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap font-mono text-[10px] sm:text-xs tracking-[0.18em] text-brass uppercase">
+            ↻ {t('table.waitingFor')} {turnHolderName}
+          </div>
+        )}
+
+        {/* Brief "collected by X" overlay during the 0.55s slide-to-winner */}
+        {trickPlays.length === 0 && view.lastTrick && view.phase === 'PLAYING' && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="absolute -bottom-7 left-1/2 -translate-x-1/2 whitespace-nowrap font-display italic text-cream/70 text-[11px] sm:text-xs"
+          >
+            ▸ {t('table.collected')} {room.seats[view.lastTrick.winner]?.nickname ?? '—'}
+          </motion.div>
         )}
 
         {/* Game over */}
@@ -370,14 +536,7 @@ function PlayZone({
           </div>
         )}
 
-        {/* Last-trick caption */}
-        {trickPlays.length === 0 && view.lastTrick && view.phase === 'PLAYING' && (
-          <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap font-display italic text-cream/55 text-[10px] sm:text-xs">
-            {t('table.lastTrick', { n: view.lastTrick.winner + 1 })}
-          </div>
-        )}
-
-        {/* Announcements */}
+        {/* Announcements ribbon */}
         {view.announcements.length > 0 && view.phase !== 'GAME_OVER' && (
           <div className="absolute -top-8 sm:-top-9 left-1/2 -translate-x-1/2 flex flex-wrap gap-1 justify-center max-w-[260px] sm:max-w-[320px]">
             {view.announcements.slice(0, 3).map((a, i) => (
@@ -405,6 +564,49 @@ function PlayZone({
             ))}
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+// Center info shown during BIDDING: live highest bid + whose turn it is.
+function BiddingCenterPanel({
+  liveBid,
+  liveBidName,
+  turnHolderName,
+}: {
+  liveBid: { type: 'BID'; seat: Seat; contract: BidContract } | null
+  liveBidName: string | null
+  turnHolderName: string
+}) {
+  const t = useT()
+  const view = useGame((s) => s.view)!
+
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div className="eyebrow text-ash text-[9px] sm:text-[10px]">{t('bid.lastBidLabel')}</div>
+
+      {liveBid ? (
+        <div className="flex items-center gap-1.5 mt-0.5">
+          <span className={`font-display text-lg sm:text-2xl leading-none ${CONTRACT_GLYPH[liveBid.contract].red ? 'text-ember-hi' : 'text-brass-hi'}`}>
+            {CONTRACT_GLYPH[liveBid.contract].glyph}
+          </span>
+          <span className="font-display italic text-cream/90 text-sm sm:text-base whitespace-nowrap">
+            {t(`suit.${liveBid.contract}.name` as MessageKey)} · {liveBidName}
+          </span>
+          {view.multiplier > 1 && (
+            <span className="font-mono text-[10px] tracking-widest text-ember-hi">×{view.multiplier}</span>
+          )}
+        </div>
+      ) : (
+        <div className="font-display italic text-cream/60 text-sm mt-0.5">{t('bid.noBidYet')}</div>
+      )}
+
+      <div className="mt-1.5 flex flex-col items-center">
+        <div className="eyebrow text-brass text-[8px] sm:text-[10px]">{t('table.onTurn')}</div>
+        <div className="font-display italic text-cream text-base sm:text-lg truncate max-w-[150px] sm:max-w-[200px]">
+          {turnHolderName}
+        </div>
       </div>
     </div>
   )

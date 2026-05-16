@@ -3,6 +3,8 @@ import type { BidContract } from '@belot/shared'
 import { useGame } from '../store/game.js'
 import { useT } from '../i18n/index.js'
 
+// (helper: name of the seat whose turn it is, for the waiting message)
+
 const ORDER: BidContract[] = ['C', 'D', 'H', 'S', 'NT', 'AT']
 const SUIT_GLYPH: Record<BidContract, string> = { C: '♣', D: '♦', H: '♥', S: '♠', NT: '∅', AT: '⁂' }
 const SUIT_RED: Record<BidContract, boolean> = { C: false, D: true, H: true, S: false, NT: false, AT: false }
@@ -10,9 +12,11 @@ const SUIT_RED: Record<BidContract, boolean> = { C: false, D: true, H: true, S: 
 export function BiddingPanel() {
   const t = useT()
   const view = useGame((s) => s.view)!
+  const room = useGame((s) => s.room)!
   const mySeat = useGame((s) => s.mySeat)
   const send = useGame((s) => s.send)
   const myTurn = view.turn === mySeat
+  const turnHolderName = room.seats[view.turn]?.nickname ?? '—'
 
   const currentBidIdx = (() => {
     for (let i = view.bidHistory.length - 1; i >= 0; i--) {
@@ -27,7 +31,7 @@ export function BiddingPanel() {
       <div className="text-center py-3">
         <div className="eyebrow text-ash">{t('table.bidding')}</div>
         <div className="font-display italic text-cream/80 mt-1">
-          {t('bid.waitFor', { n: view.turn + 1 })}
+          {t('bid.waitFor', { name: turnHolderName })}
         </div>
       </div>
     )

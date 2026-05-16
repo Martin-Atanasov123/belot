@@ -65,11 +65,18 @@ export const bg = {
   'table.carre':         'Каре {rank}',
   'table.seqOf':         '{n} в {suit}',
 
-  'bid.waitFor':         'Изчакване на място {n}…',
+  'bid.waitFor':         'Изчакване — {name}',
   'bid.yourTurn':        'Наддаване — твой ред',
   'bid.pass':            'Пас',
   'bid.contra':          'Контра',
   'bid.recontra':        'Реконтра',
+  'bid.lastBidLabel':    'Последен залог',
+  'bid.noBidYet':        'Все още няма залог',
+  'bid.pass.short':      'ПАС',
+
+  'table.onTurn':        'На ход',
+  'table.waitingFor':    'Чакаме',
+  'table.collected':     'Прибра',
 
   'suit.C.name':         'Спатия',
   'suit.D.name':         'Каро',

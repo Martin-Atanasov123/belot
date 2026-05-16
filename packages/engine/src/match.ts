@@ -12,7 +12,7 @@ import {
   type Trick,
 } from '@belot/shared'
 import { applyBid, bidLegal, startBidding, type BiddingState } from './bidding.js'
-import { dealFromSeed } from './deck.js'
+import { dealFirstFive, dealLastThree, shuffledDeck } from './deck.js'
 import { isLegalPlay, trickWinner } from './legalMoves.js'
 import { mulberry32 } from './rng.js'
 import { cardPoints } from './ranking.js'
@@ -83,7 +83,9 @@ function startNewHand(args: {
   hungPool?: { points: number } | null
 }): GameSnapshot {
   const rng = mulberry32(args.seed)
-  const hands = dealFromSeed(rng, args.dealer)
+  // Round 1: deal 5 cards each. The remaining 3 per seat are dealt when bidding completes.
+  const deck = shuffledDeck(rng)
+  const hands = dealFirstFive(deck, args.dealer)
   const bidding = startBidding(args.dealer, args.settings.enableNT, args.settings.enableAT)
   const snap: GameSnapshot = {
     phase: 'BIDDING',
@@ -153,6 +155,11 @@ function applyBidPhase(snap: GameSnapshot, action: Action): GameSnapshot | Engin
         hungPool: snap.hungPool, // preserve the carry across redeals
       })
     }
+    // Bidding concluded → deal the remaining 3 cards per seat using the same seed
+    // (deterministic shuffle), then start play.
+    const rng = mulberry32(snap.rngSeed)
+    const deck = shuffledDeck(rng)
+    const fullHands = dealLastThree(deck, snap.dealer, snap.hands)
     next = {
       ...next,
       phase: 'PLAYING',
@@ -162,6 +169,7 @@ function applyBidPhase(snap: GameSnapshot, action: Action): GameSnapshot | Engin
       multiplier: after.result!.multiplier,
       turn: nextSeat(snap.dealer),
       currentTrick: { leader: nextSeat(snap.dealer), cards: [] },
+      hands: fullHands,
     }
   }
   return next
@@ -174,6 +182,11 @@ function applyPlayPhase(snap: GameSnapshot, action: Action): GameSnapshot | Engi
     return { error: 'belot is announced automatically when the second card is played' }
   }
   if (action.type !== 'PLAY') return { error: 'expected PLAY action' }
+  // Reject plays while a complete trick is on the table — the server must call
+  // resolveTrick first (after a small delay so the last card is visible to humans).
+  if (snap.currentTrick && snap.currentTrick.cards.length === 4) {
+    return { error: 'trick complete, awaiting resolution' }
+  }
   const seat = action.seat as Seat
   if (seat !== snap.turn) return { error: 'not your turn' }
   const hand = snap.hands[seat]
@@ -211,56 +224,78 @@ function applyPlayPhase(snap: GameSnapshot, action: Action): GameSnapshot | Engi
     }
   }
 
-  let next: GameSnapshot = {
+  // If the trick is now complete (4 cards), pause here. The trick stays visible
+  // in `currentTrick`; the next valid call is `resolveTrick(snap)` (caller schedules
+  // it with a UX delay so humans can see who played what). `turn` advances to the
+  // current winner as a UI hint of who'll lead next.
+  if (trick.cards.length === 4) {
+    const winnerSeat = trickWinner(trick, snap.contract!, snap.trump) as Seat
+    return {
+      ...snap,
+      hands: newHands,
+      currentTrick: trick,
+      turn: winnerSeat,
+      belotIntent,
+    }
+  }
+
+  const next: GameSnapshot = {
     ...snap,
     hands: newHands,
     currentTrick: trick,
     turn: nextSeat(seat),
     belotIntent,
   }
+  return next
+}
 
-  if (trick.cards.length === 4) {
-    // Resolve trick.
-    const winnerSeat = trickWinner(trick, snap.contract!, snap.trump) as Seat
-    const trickPoints = trick.cards.reduce((s, p) => s + cardPoints(p.card, snap.contract!, snap.trump), 0)
-    next = {
-      ...next,
-      currentTrick: null,
-      completedTricks: [
-        ...next.completedTricks,
-        { leader: trick.leader, cards: trick.cards, winner: winnerSeat, points: trickPoints },
-      ],
-      turn: winnerSeat,
-    }
+// Called by the server (or by tests) after a brief UX delay once a trick is complete.
+// Resolves the trick into completedTricks, freezes announcements after trick 1,
+// and finalizes the hand after trick 8.
+export function resolveTrick(snap: GameSnapshot): GameSnapshot | EngineError {
+  if (snap.phase !== 'PLAYING') return { error: 'not in PLAYING phase' }
+  const trick = snap.currentTrick
+  if (!trick || trick.cards.length !== 4) return { error: 'no complete trick to resolve' }
 
-    // After the first trick, freeze announcements based on the original deal hands.
-    // No announcements at all in NT (belot.bg: "При игра на „Без коз" играчите нямат право
-    // да обявяват притежаваните от тях комбинации").
-    if (
-      next.completedTricks.length === 1 &&
-      next.announcements.length === 0 &&
-      snap.contract !== 'NT'
-    ) {
-      const perSeat = ([0, 1, 2, 3] as Seat[]).map((s) =>
-        scanHand(
-          // Use the *original* deal hand: reconstruct by adding back played card for this seat from trick.
-          reconstructDealHand(snap, s),
-          s,
-        ),
-      )
-      const resolved = resolveAnnouncements(perSeat, snap.contract!, snap.trump)
-      next = { ...next, announcements: resolved.announcements }
-    }
-
-    // If all 8 tricks played → score hand.
-    if (next.completedTricks.length === 8) {
-      next = finalizeHand(next)
-    } else {
-      next = { ...next, currentTrick: { leader: winnerSeat, cards: [] } }
-    }
+  const winnerSeat = trickWinner(trick, snap.contract!, snap.trump) as Seat
+  const trickPoints = trick.cards.reduce(
+    (s, p) => s + cardPoints(p.card, snap.contract!, snap.trump),
+    0,
+  )
+  let next: GameSnapshot = {
+    ...snap,
+    currentTrick: null,
+    completedTricks: [
+      ...snap.completedTricks,
+      { leader: trick.leader, cards: trick.cards, winner: winnerSeat, points: trickPoints },
+    ],
+    turn: winnerSeat,
   }
 
+  // Announcements freeze after first complete trick (NT excluded).
+  if (
+    next.completedTricks.length === 1 &&
+    next.announcements.length === 0 &&
+    snap.contract !== 'NT'
+  ) {
+    const perSeat = ([0, 1, 2, 3] as Seat[]).map((s) =>
+      scanHand(reconstructDealHand(snap, s), s),
+    )
+    const resolved = resolveAnnouncements(perSeat, snap.contract!, snap.trump)
+    next = { ...next, announcements: resolved.announcements }
+  }
+
+  if (next.completedTricks.length === 8) {
+    next = finalizeHand(next)
+  } else {
+    next = { ...next, currentTrick: { leader: winnerSeat, cards: [] } }
+  }
   return next
+}
+
+// Convenience for callers (server, tests) — "is a complete trick sitting on the table?"
+export function hasPendingTrick(snap: GameSnapshot): boolean {
+  return snap.phase === 'PLAYING' && !!snap.currentTrick && snap.currentTrick.cards.length === 4
 }
 
 function reconstructDealHand(snap: GameSnapshot, seat: Seat): Card[] {
@@ -395,8 +430,10 @@ export function projectView(snap: GameSnapshot, you: Seat): PlayerView {
 }
 
 // Convenience: pick a fallback card on turn-timer expiry — lowest-value legal card.
+// Returns null if the trick is already complete (caller should resolve first).
 export function autoPickOnTimeout(snap: GameSnapshot): Card | null {
   if (snap.phase !== 'PLAYING') return null
+  if (!snap.currentTrick || snap.currentTrick.cards.length === 4) return null
   const seat = snap.turn
   const hand = snap.hands[seat]
   const legal = hand.filter((c) =>

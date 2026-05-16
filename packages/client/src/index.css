@@ -35,10 +35,22 @@ body::after {
 }
 
 /* ─────── Card face ─────── */
+:root {
+  --card-w: 76px;
+  --card-h: 108px;
+  --card-radius: 9px;
+}
+@media (max-width: 640px) {
+  :root { --card-w: 58px; --card-h: 84px; --card-radius: 7px; }
+}
+@media (max-width: 380px) {
+  :root { --card-w: 50px; --card-h: 72px; --card-radius: 6px; }
+}
+
 .card-face {
-  width: 76px;
-  height: 108px;
-  border-radius: 9px;
+  width: var(--card-w);
+  height: var(--card-h);
+  border-radius: var(--card-radius);
   background:
     linear-gradient(180deg, #fbf5e0 0%, #f1e6c1 100%);
   color: #161616;
@@ -153,10 +165,30 @@ body::after {
 .card-small .face-letter { font-size: 1.25rem; }
 .card-small .face-suit { font-size: 0.65rem; }
 
+/* Mobile card-internal sizing — keep pips/letters legible at smaller widths. */
+@media (max-width: 640px) {
+  .card-face { grid-template-rows: 18px 1fr 18px; padding: 3px 5px; }
+  .card-face .rank { font-size: 0.78rem; }
+  .card-face .suit { font-size: 0.72rem; }
+  .pip-dot { font-size: 0.8rem; }
+  .pip-ace { font-size: 1.7rem; }
+  .face-letter { font-size: 1.5rem; }
+  .face-suit { font-size: 0.75rem; }
+}
+@media (max-width: 380px) {
+  .card-face { grid-template-rows: 14px 1fr 14px; padding: 2px 4px; }
+  .card-face .rank { font-size: 0.68rem; }
+  .card-face .suit { font-size: 0.62rem; }
+  .pip-dot { font-size: 0.7rem; }
+  .pip-ace { font-size: 1.4rem; }
+  .face-letter { font-size: 1.25rem; }
+  .face-suit { font-size: 0.62rem; }
+}
+
 /* Card back — diamond engine-turned brass pattern. */
 .card-back {
-  width: 76px; height: 108px;
-  border-radius: 9px;
+  width: var(--card-w); height: var(--card-h);
+  border-radius: var(--card-radius);
   background:
     repeating-linear-gradient(45deg, #c9a25a 0 6px, #8a6a2c 6px 12px),
     linear-gradient(180deg, #1a120a, #2b1f0e);

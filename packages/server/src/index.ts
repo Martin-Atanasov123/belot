@@ -16,16 +16,19 @@ import {
   botAction,
   clearBotTimer,
   clearTimer,
+  clearTrickResolveTimer,
   createRoom,
   findFreeSeat,
   findSeatByPlayerId,
   isBotsTurn,
   noOccupantsConnected,
   publicState,
+  resolveCurrentTrick,
   setConnected,
   snapshotForSeat,
   startGame,
   takeSeat,
+  trickIsPending,
   type Room,
 } from './room.js'
 
@@ -81,6 +84,7 @@ const io = new SocketIOServer(server, {
 const TURN_TIMER_MS = 30_000
 const ROOM_EMPTY_GRACE_MS = 60_000 // delete a room 60s after all sockets disconnect
 const BOT_TURN_DELAY_MS = 750     // pacing for bot moves so it feels human
+const TRICK_LINGER_MS = 1500      // hold a completed trick on the table this long before collecting
 
 function cancelEmptyTimer(room: Room) {
   if (room.emptyTimer) {
@@ -153,6 +157,20 @@ function maybeScheduleBotTurn(room: Room) {
 function afterTransition(room: Room) {
   broadcastRoomState(room)
   broadcastViews(room)
+
+  // A complete trick is sitting on the table — let humans see the last card,
+  // then resolve and continue.
+  if (trickIsPending(room)) {
+    clearTimer(room)
+    clearBotTimer(room)
+    clearTrickResolveTimer(room)
+    room.trickResolveTimer = setTimeout(() => {
+      const changed = resolveCurrentTrick(room)
+      if (changed) afterTransition(room)
+    }, TRICK_LINGER_MS)
+    return
+  }
+
   if (isBotsTurn(room)) {
     clearTimer(room)
     maybeScheduleBotTurn(room)

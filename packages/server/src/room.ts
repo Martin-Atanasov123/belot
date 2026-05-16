@@ -2,9 +2,11 @@ import {
   advanceHand,
   apply,
   autoPickOnTimeout,
+  hasPendingTrick,
   isError,
   newMatch,
   projectView,
+  resolveTrick,
 } from '@belot/engine'
 import {
   DEFAULT_SETTINGS,
@@ -32,6 +34,7 @@ export type Room = {
   turnTimer: NodeJS.Timeout | null
   emptyTimer: NodeJS.Timeout | null
   botTimer: NodeJS.Timeout | null
+  trickResolveTimer: NodeJS.Timeout | null
 }
 
 export function noOccupantsConnected(room: Room): boolean {
@@ -61,6 +64,7 @@ export function createRoom(code: string, hostId: string, settings: Partial<RoomS
     turnTimer: null,
     emptyTimer: null,
     botTimer: null,
+    trickResolveTimer: null,
   }
 }
 
@@ -197,6 +201,32 @@ export function clearBotTimer(room: Room) {
     clearTimeout(room.botTimer)
     room.botTimer = null
   }
+}
+
+export function clearTrickResolveTimer(room: Room) {
+  if (room.trickResolveTimer) {
+    clearTimeout(room.trickResolveTimer)
+    room.trickResolveTimer = null
+  }
+}
+
+// Run engine.resolveTrick on the room's snapshot, swap it in, and (best-effort)
+// auto-advance HAND_OVER → next hand. Returns true if state changed.
+export function resolveCurrentTrick(room: Room): boolean {
+  if (!room.snapshot) return false
+  if (!hasPendingTrick(room.snapshot)) return false
+  const res = resolveTrick(room.snapshot)
+  if (isError(res)) return false
+  room.snapshot = res
+  if (room.snapshot.phase === 'HAND_OVER') {
+    const next = advanceHand(room.snapshot)
+    if (!isError(next)) room.snapshot = next
+  }
+  return true
+}
+
+export function trickIsPending(room: Room): boolean {
+  return !!room.snapshot && hasPendingTrick(room.snapshot)
 }
 
 export function isBotsTurn(room: Room): boolean {

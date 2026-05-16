@@ -1,5 +1,8 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
+
+const isMobileLikely = () =>
+  typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches
 import { useGame } from '../store/game.js'
 import { useT } from '../i18n/index.js'
 import { Flourish, Monogram, CornerOrnament } from './Ornaments.js'
@@ -34,32 +37,32 @@ export function Lobby() {
       <CornerOrnament className="absolute top-5 right-5 w-10 h-10 text-brass/40" style={{ transform: 'scaleX(-1)' } as React.CSSProperties} />
       <LanguageToggle className="absolute top-5 left-1/2 -translate-x-1/2 z-30" />
 
-      <main className="relative z-10 min-h-screen flex items-center justify-center p-6">
+      <main className="relative z-10 min-h-[100dvh] flex items-center justify-center p-3 sm:p-6">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, ease: 'easeOut' }}
-          className="w-full max-w-2xl plate p-8 md:p-12"
+          className="w-full max-w-2xl plate p-5 sm:p-8 md:p-12"
         >
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-3">
-              <Monogram size={36} />
-              <div className="font-display italic text-cream/80 text-lg">{t('common.salon')}</div>
+          <div className="flex items-center justify-between mb-2 gap-2">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <Monogram size={isMobileLikely() ? 28 : 36} />
+              <div className="font-display italic text-cream/80 text-base sm:text-lg truncate">{t('common.salon')}</div>
             </div>
-            <div className="text-right">
-              <div className="eyebrow text-ash">{t('lobby.roomNo')}</div>
-              <div className="font-mono text-2xl text-brass tracking-[0.32em]">{room.code}</div>
+            <div className="text-right shrink-0">
+              <div className="eyebrow text-ash text-[9px] sm:text-[10px]">{t('lobby.roomNo')}</div>
+              <div className="font-mono text-xl sm:text-2xl text-brass tracking-[0.28em] sm:tracking-[0.32em]">{room.code}</div>
             </div>
           </div>
 
           <div className="rule-brass my-6" />
 
-          <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 mb-7">
-            <div className="flex-1 plate-cream px-4 py-3 truncate">
-              <div className="eyebrow text-stone-600">{t('lobby.invite')}</div>
-              <code className="font-mono text-stone-800 text-sm truncate block">{url}</code>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 mb-5 sm:mb-7">
+            <div className="flex-1 plate-cream px-3 sm:px-4 py-2 sm:py-3 min-w-0">
+              <div className="eyebrow text-stone-600 text-[9px] sm:text-[10px]">{t('lobby.invite')}</div>
+              <code className="font-mono text-stone-800 text-[11px] sm:text-sm truncate block">{url}</code>
             </div>
-            <button onClick={onCopy} className="btn-brass shrink-0">
+            <button onClick={onCopy} className="btn-brass shrink-0 py-2 sm:py-3">
               {copied ? t('lobby.copied') : t('lobby.copy')}
             </button>
           </div>

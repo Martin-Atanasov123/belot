@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { advanceHand, apply, autoPickOnTimeout, isError, newMatch, projectView } from '../src/match.js'
+import {
+  advanceHand,
+  apply,
+  autoPickOnTimeout,
+  hasPendingTrick,
+  isError,
+  newMatch,
+  projectView,
+  resolveTrick,
+} from '../src/match.js'
 import { legalMoves } from '../src/legalMoves.js'
 import type { Action, GameSnapshot, Seat } from '@belot/shared'
 
@@ -21,13 +30,26 @@ function autoBidToAT(snap: GameSnapshot): GameSnapshot {
   return s
 }
 
+// Resolve any pending trick (server normally does this after a delay).
+function settle(snap: GameSnapshot): GameSnapshot {
+  if (!hasPendingTrick(snap)) return snap
+  const r = resolveTrick(snap)
+  if (isError(r)) throw new Error(r.error)
+  return r
+}
+
 function playLowestUntilHandOver(snap: GameSnapshot): GameSnapshot {
-  let s = snap
+  let s = settle(snap)
   let guard = 0
   while (s.phase === 'PLAYING') {
     const card = autoPickOnTimeout(s)
-    if (!card) throw new Error('no auto card')
+    if (!card) {
+      // Pending trick? Resolve and continue.
+      if (hasPendingTrick(s)) { s = settle(s); continue }
+      throw new Error('no auto card')
+    }
     s = play(s, { type: 'PLAY', seat: s.turn, card })
+    s = settle(s)
     if (guard++ > 100) throw new Error('infinite loop')
   }
   return s
@@ -118,6 +140,7 @@ describe('match reducer', () => {
     let snap = newMatch({ seed: 555 })
     snap = autoBidToAT(snap)
     while (snap.phase === 'PLAYING') {
+      if (hasPendingTrick(snap)) { snap = settle(snap); continue }
       const seat = snap.turn
       const legal = legalMoves(snap.hands[seat], snap.currentTrick!, snap.contract!, snap.trump)
       expect(legal.length).toBeGreaterThan(0)

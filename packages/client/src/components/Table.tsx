@@ -740,56 +740,61 @@ function AnnouncementsBanner() {
     <AnimatePresence>
       {show && (
         <motion.div
-          initial={{ opacity: 0, scale: 0.85, y: -12 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: -12, transition: { duration: 0.6 } }}
-          transition={{ type: 'spring', stiffness: 220, damping: 22 }}
-          className="absolute z-30 left-1/2 top-[28%] sm:top-[32%] -translate-x-1/2 pointer-events-none"
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -20, transition: { duration: 0.5 } }}
+          transition={{ type: 'spring', stiffness: 240, damping: 24 }}
+          className="absolute z-30 left-3 sm:left-6 bottom-28 sm:bottom-44 pointer-events-none"
         >
-          <div className="plate px-4 sm:px-6 py-3 sm:py-4 max-w-[92vw] sm:max-w-[480px]">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <span className="eyebrow text-brass">{t('table.combinations')}</span>
-              {teamLabel && <span className="font-display italic text-cream/80 text-sm">{teamLabel}</span>}
+          <div className="plate px-3 py-2 max-w-[78vw] sm:max-w-[260px] border border-brass-hi/40">
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <span className="eyebrow text-brass-hi text-[9px]">{t('table.combinations')}</span>
+              {teamLabel && <span className="font-display italic text-cream/70 text-[10px]">{teamLabel}</span>}
             </div>
-            <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
-              {view.announcements.map((a, i) => (
+            <div className="flex flex-col gap-1">
+              {view.announcements.slice(0, 3).map((a, i) => (
                 <motion.div
                   key={i}
-                  initial={{ opacity: 0, scale: 0.7, y: 6 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  transition={{ delay: 0.1 + i * 0.12, type: 'spring', stiffness: 260, damping: 18 }}
-                  className="plate-cream px-2.5 sm:px-3 py-1 sm:py-1.5 font-mono text-[12px] sm:text-sm text-stone-900 flex items-center gap-1.5"
+                  initial={{ opacity: 0, x: -6 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.05 + i * 0.08 }}
+                  className="font-mono text-[11px] text-cream flex items-center gap-1.5 whitespace-nowrap"
                 >
                   {a.kind === 'sequence' && (
                     <>
-                      <span>{a.length === 3 ? 'Терца' : a.length === 4 ? 'Кварта' : 'Квинта'}</span>
-                      <span className="text-ember">{SUIT_GLYPH[a.suit]}</span>
+                      <span className="text-cream/80">
+                        {a.length === 3 ? 'Терца' : a.length === 4 ? 'Кварта' : 'Квинта'}
+                      </span>
+                      <span className="text-ember-hi">{SUIT_GLYPH[a.suit]}</span>
                       <span className="text-brass-hi">+{a.points}</span>
                     </>
                   )}
                   {a.kind === 'carre' && (
                     <>
-                      <span>Каре {a.rank}</span>
+                      <span className="text-cream/80">Каре {a.rank}</span>
                       <span className="text-brass-hi">+{a.points}</span>
                     </>
                   )}
                   {a.kind === 'belot' && (
                     <>
-                      <span>Белот</span>
+                      <span className="text-cream/80">Белот</span>
                       <span className="text-brass-hi">+20</span>
                     </>
                   )}
                 </motion.div>
               ))}
+              {view.announcements.length > 3 && (
+                <div className="font-mono text-[10px] text-ash italic">
+                  +{view.announcements.length - 3} още…
+                </div>
+              )}
             </div>
             {total > 0 && (
-              <div className="text-center mt-2 font-mono text-brass-hi text-sm">
-                ∑ +{total}
+              <div className="mt-1 pt-1 border-t border-brass/20 font-mono text-brass-hi text-[11px] flex justify-between">
+                <span className="text-cream/60 italic">{room.seats[view.announcements[0]?.seat ?? 0]?.nickname ?? ''}</span>
+                <span>∑ +{total}</span>
               </div>
             )}
-            <div className="text-center text-ash text-[10px] mt-1 italic">
-              {(room.seats[view.announcements[0]?.seat ?? 0]?.nickname ?? '')}
-            </div>
           </div>
         </motion.div>
       )}

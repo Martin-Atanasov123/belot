@@ -113,4 +113,52 @@ describe('legalMoves', () => {
     // J is trump (highest), 10 was current best → J required.
     expect(legal).toEqual([C('D', 'J')])
   })
+
+  // ─── AT trick-winner: same-suit beats same-suit; cross-suit cannot win ───
+  it('AT: 9♠ leads, J♥ from another seat does NOT beat it (no suit dominates)', () => {
+    const trick = newTrick(0, [
+      { seat: 0, card: C('S', '9') },  // led
+      { seat: 1, card: C('H', 'J') },  // different suit — cannot win
+    ])
+    expect(trickWinner(trick, 'AT', null)).toBe(0)
+  })
+
+  it('AT: highest of led suit wins regardless of other suits played', () => {
+    const trick = newTrick(0, [
+      { seat: 0, card: C('S', '9') },   // led
+      { seat: 1, card: C('S', 'J') },   // higher led-suit → winning
+      { seat: 2, card: C('H', 'J') },   // different suit → doesn't matter
+      { seat: 3, card: C('S', '7') },   // led suit but weaker
+    ])
+    expect(trickWinner(trick, 'AT', null)).toBe(1)
+  })
+
+  it('AT: when cannot follow led suit, free discard (no must-trump)', () => {
+    // Led ♠, hand has only hearts → all of them are legal discards.
+    const hand = [C('H', 'A'), C('H', '7'), C('H', 'J')]
+    const trick = newTrick(0, [{ seat: 0, card: C('S', '10') }])
+    const legal = legalMoves(hand, trick, 'AT', null)
+    expect(legal).toEqual(hand)
+  })
+
+  it('AT: when partner is winning, may follow without over-trumping', () => {
+    // Seats: 0,2 = NS partners; 1,3 = EW. Trick led by 0, currently seat 2 (partner of 0) winning.
+    const trick = newTrick(0, [
+      { seat: 0, card: C('S', '10') },
+      { seat: 1, card: C('S', '7') },
+      { seat: 2, card: C('S', 'J') }, // partner winning
+    ])
+    // Seat 3 (next actor) holds ♠Q and ♠9. Standard rule: needn't over-trump partner.
+    const hand = [C('S', 'Q'), C('S', '9')]
+    const legal = legalMoves(hand, trick, 'AT', null)
+    expect(legal).toEqual(hand)
+  })
+
+  it('NT: cross-suit cannot win (sanity check, existing behaviour preserved)', () => {
+    const trick = newTrick(0, [
+      { seat: 0, card: C('S', '9') },
+      { seat: 1, card: C('H', 'J') },
+    ])
+    expect(trickWinner(trick, 'NT', null)).toBe(0)
+  })
 })

@@ -114,7 +114,7 @@ export function Lobby() {
                   </div>
                 )}
 
-                {!s.nickname && amHost && (
+                {!s.nickname && (
                   <button
                     onClick={() => void addBot(s.seat)}
                     className="btn-ghost py-1.5 px-3 text-[10px]"
@@ -129,16 +129,15 @@ export function Lobby() {
 
           <Flourish className="w-40 mx-auto text-brass/40 mb-6" />
 
-          {amHost ? (
-            <button
-              onClick={() => void start()}
-              disabled={!allFilled}
-              className="btn-brass w-full"
-            >
-              {allFilled ? t('lobby.start') : t('lobby.waiting', { n: 4 - filled })}
-            </button>
-          ) : (
-            <div className="text-center font-display italic text-cream/70">
+          <button
+            onClick={() => void start()}
+            disabled={!allFilled}
+            className="btn-brass w-full"
+          >
+            {allFilled ? t('lobby.start') : t('lobby.waiting', { n: 4 - filled })}
+          </button>
+          {!amHost && allFilled && (
+            <div className="text-center font-display italic text-cream/50 text-xs mt-2">
               {t('lobby.hostWillStart')}
             </div>
           )}

@@ -307,14 +307,14 @@ function decideBotBid(room: Room): Action {
   scored.sort((a, b) => b.s - a.s)
   const best = scored[0]!
 
-  // Thresholds — be selective. A 5-card hand maxes around ~70, the J+9 of a suit alone is 34.
-  // We require a clearly strong hand to commit to a contract.
-  let threshold = 44
-  if (best.c === 'NT') threshold = 58
-  if (best.c === 'AT') threshold = 64
+  // Thresholds — be reasonably selective. 5-card hand maxes ~60-70.
+  // J + 9 of a suit alone is 34; J + good supporters typically reaches ~40+.
+  let threshold = 40
+  if (best.c === 'NT') threshold = 54
+  if (best.c === 'AT') threshold = 58
 
   // Raising over an existing bid is high-risk → demand a bigger margin.
-  if (last) threshold += 10
+  if (last) threshold += 8
 
   // A pinch of randomness so the bot isn't perfectly predictable. ±4 wobble.
   // Uses the snapshot's seed (deterministic per hand+seat) so behaviour is replay-safe.
@@ -322,9 +322,9 @@ function decideBotBid(room: Room): Action {
   const wobble = ((wobbleSeed % 9) - 4) // -4..+4
   const effectiveScore = best.s + wobble
 
-  // Even meeting the threshold, occasionally pass (~15%) to feel less robotic.
+  // Even meeting the threshold, occasionally pass (~10%) to feel less robotic.
   const passDie = (wobbleSeed >>> 4) % 100
-  const occasionallyPass = passDie < 15
+  const occasionallyPass = passDie < 10
 
   if (effectiveScore >= threshold && !occasionallyPass) {
     return { type: 'BID', seat, contract: best.c }

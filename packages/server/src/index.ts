@@ -228,7 +228,9 @@ io.on('connection', (socket) => {
     if (!joinedRoom || !playerId) return cb({ ok: false, error: 'not in a room' })
     const room = rooms.get(joinedRoom)
     if (!room) return cb({ ok: false, error: 'room gone' })
-    if (room.hostId !== playerId) return cb({ ok: false, error: 'only host can start' })
+    if (findSeatByPlayerId(room, playerId) === null) {
+      return cb({ ok: false, error: 'only seated players can start' })
+    }
     if (!allSeatsFilled(room)) return cb({ ok: false, error: 'fill all 4 seats first' })
     const r = startGame(room)
     if (!r.ok) return cb({ ok: false, error: r.error })
@@ -240,7 +242,10 @@ io.on('connection', (socket) => {
     if (!joinedRoom || !playerId) return cb({ ok: false, error: 'not in a room' })
     const room = rooms.get(joinedRoom)
     if (!room) return cb({ ok: false, error: 'room gone' })
-    if (room.hostId !== playerId) return cb({ ok: false, error: 'only host can add bots' })
+    if (findSeatByPlayerId(room, playerId) === null) {
+      return cb({ ok: false, error: 'only seated players can add bots' })
+    }
+    if (room.snapshot) return cb({ ok: false, error: 'game already in progress' })
     const parsed = z
       .object({ seat: z.number().int().min(0).max(3).optional() })
       .safeParse(raw ?? {})

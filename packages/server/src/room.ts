@@ -19,6 +19,7 @@ export type SeatOccupant = {
   playerId: string // server-assigned secret token
   nickname: string
   connected: boolean
+  isBot: boolean
 }
 
 export type Room = {
@@ -30,6 +31,7 @@ export type Room = {
   createdAt: number
   turnTimer: NodeJS.Timeout | null
   emptyTimer: NodeJS.Timeout | null
+  botTimer: NodeJS.Timeout | null
 }
 
 export function noOccupantsConnected(room: Room): boolean {
@@ -42,7 +44,8 @@ export function noOccupantsConnected(room: Room): boolean {
 
 export type PublicRoomState = {
   code: string
-  seats: Array<{ seat: Seat; nickname: string | null; connected: boolean }>
+  hostId: string
+  seats: Array<{ seat: Seat; nickname: string | null; connected: boolean; isBot: boolean }>
   inGame: boolean
   settings: RoomSettings
 }
@@ -57,16 +60,19 @@ export function createRoom(code: string, hostId: string, settings: Partial<RoomS
     createdAt: Date.now(),
     turnTimer: null,
     emptyTimer: null,
+    botTimer: null,
   }
 }
 
 export function publicState(room: Room): PublicRoomState {
   return {
     code: room.code,
+    hostId: room.hostId,
     seats: ([0, 1, 2, 3] as Seat[]).map((s) => ({
       seat: s,
       nickname: room.seats[s]?.nickname ?? null,
       connected: room.seats[s]?.connected ?? false,
+      isBot: room.seats[s]?.isBot ?? false,
     })),
     inGame: room.snapshot !== null,
     settings: room.settings,
@@ -98,8 +104,26 @@ export function takeSeat(
   // If this playerId already holds another seat, free it.
   const existing = findSeatByPlayerId(room, playerId)
   if (existing !== null) room.seats[existing] = null
-  room.seats[seat] = { playerId, nickname, connected: true }
+  room.seats[seat] = { playerId, nickname, connected: true, isBot: false }
   return { ok: true }
+}
+
+export function addBot(
+  room: Room,
+  seat: Seat,
+  nickname: string,
+): { ok: true; playerId: string } | { ok: false; error: string } {
+  if (room.snapshot) return { ok: false, error: 'game already in progress' }
+  if (room.seats[seat]) return { ok: false, error: 'seat taken' }
+  const playerId = `bot-${room.code}-${seat}-${Math.random().toString(36).slice(2, 8)}`
+  room.seats[seat] = { playerId, nickname, connected: true, isBot: true }
+  return { ok: true, playerId }
+}
+
+export function removeBots(room: Room) {
+  for (const s of [0, 1, 2, 3] as Seat[]) {
+    if (room.seats[s]?.isBot) room.seats[s] = null
+  }
 }
 
 export function setConnected(room: Room, playerId: string, connected: boolean) {
@@ -166,4 +190,31 @@ export function clearTimer(room: Room) {
     clearTimeout(room.turnTimer)
     room.turnTimer = null
   }
+}
+
+export function clearBotTimer(room: Room) {
+  if (room.botTimer) {
+    clearTimeout(room.botTimer)
+    room.botTimer = null
+  }
+}
+
+export function isBotsTurn(room: Room): boolean {
+  if (!room.snapshot) return false
+  const occ = room.seats[room.snapshot.turn]
+  return !!occ?.isBot
+}
+
+// Bot policy: pass during bidding, pick the engine's lowest-value legal card during play.
+export function botAction(room: Room): { seat: Seat; action: Action } | null {
+  if (!room.snapshot) return null
+  if (room.snapshot.phase === 'BIDDING') {
+    return { seat: room.snapshot.turn, action: { type: 'PASS', seat: room.snapshot.turn } }
+  }
+  if (room.snapshot.phase === 'PLAYING') {
+    const card = autoPickOnTimeout(room.snapshot)
+    if (!card) return null
+    return { seat: room.snapshot.turn, action: { type: 'PLAY', seat: room.snapshot.turn, card } }
+  }
+  return null
 }

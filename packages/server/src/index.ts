@@ -9,13 +9,17 @@ import {
   type Seat,
 } from '@belot/shared'
 import {
+  addBot,
   allSeatsFilled,
   applyAction,
   autoPlay,
+  botAction,
+  clearBotTimer,
   clearTimer,
   createRoom,
   findFreeSeat,
   findSeatByPlayerId,
+  isBotsTurn,
   noOccupantsConnected,
   publicState,
   setConnected,
@@ -76,6 +80,7 @@ const io = new SocketIOServer(server, {
 
 const TURN_TIMER_MS = 30_000
 const ROOM_EMPTY_GRACE_MS = 60_000 // delete a room 60s after all sockets disconnect
+const BOT_TURN_DELAY_MS = 750     // pacing for bot moves so it feels human
 
 function cancelEmptyTimer(room: Room) {
   if (room.emptyTimer) {
@@ -112,24 +117,49 @@ function armTurnTimer(room: Room) {
   clearTimer(room)
   if (!room.snapshot) return
   if (room.snapshot.phase !== 'BIDDING' && room.snapshot.phase !== 'PLAYING') return
+  // Bot seats are handled by maybeScheduleBotTurn; no human turn timer for them.
+  if (isBotsTurn(room)) return
   room.turnTimer = setTimeout(() => {
     const pick = autoPlay(room)
     if (!pick) return
-    const r = applyAction(room, occupantPlayerId(room, pick.seat) ?? '__server__', pick.action)
-    if (!r.ok && r.error === 'not seated') {
-      // Bypass seating check for server-driven auto-play by injecting via internal helper.
-      // Instead, set room.snapshot directly through engine apply with the action.
-      const occ = room.seats[pick.seat]
-      if (occ) applyAction(room, occ.playerId, pick.action)
-    }
-    broadcastRoomState(room)
-    broadcastViews(room)
-    armTurnTimer(room)
+    const occ = room.seats[pick.seat]
+    if (!occ) return
+    applyAction(room, occ.playerId, pick.action)
+    afterTransition(room)
   }, TURN_TIMER_MS)
 }
 
-function occupantPlayerId(room: Room, seat: Seat): string | null {
-  return room.seats[seat]?.playerId ?? null
+// Schedule a bot move when it's their turn. Re-arms on each transition.
+function maybeScheduleBotTurn(room: Room) {
+  clearBotTimer(room)
+  if (!room.snapshot) return
+  if (!isBotsTurn(room)) return
+  room.botTimer = setTimeout(() => {
+    if (!isBotsTurn(room)) return
+    const pick = botAction(room)
+    if (!pick) return
+    const occ = room.seats[pick.seat]
+    if (!occ) return
+    const r = applyAction(room, occ.playerId, pick.action)
+    if (!r.ok) {
+      app.log.warn({ code: room.code, err: r.error }, 'bot action failed')
+      return
+    }
+    afterTransition(room)
+  }, BOT_TURN_DELAY_MS)
+}
+
+// Common post-action housekeeping: broadcast, then arm whichever timer is next.
+function afterTransition(room: Room) {
+  broadcastRoomState(room)
+  broadcastViews(room)
+  if (isBotsTurn(room)) {
+    clearTimer(room)
+    maybeScheduleBotTurn(room)
+  } else {
+    clearBotTimer(room)
+    armTurnTimer(room)
+  }
 }
 
 io.on('connection', (socket) => {
@@ -185,9 +215,30 @@ io.on('connection', (socket) => {
     const r = startGame(room)
     if (!r.ok) return cb({ ok: false, error: r.error })
     cb({ ok: true })
+    afterTransition(room)
+  })
+
+  socket.on('room:addBot', (raw, cb: (resp: unknown) => void) => {
+    if (!joinedRoom || !playerId) return cb({ ok: false, error: 'not in a room' })
+    const room = rooms.get(joinedRoom)
+    if (!room) return cb({ ok: false, error: 'room gone' })
+    if (room.hostId !== playerId) return cb({ ok: false, error: 'only host can add bots' })
+    const parsed = z
+      .object({ seat: z.number().int().min(0).max(3).optional() })
+      .safeParse(raw ?? {})
+    if (!parsed.success) return cb({ ok: false, error: 'invalid payload' })
+    const seat: Seat | null =
+      parsed.data.seat !== undefined && room.seats[parsed.data.seat as Seat] === null
+        ? (parsed.data.seat as Seat)
+        : findFreeSeat(room)
+    if (seat === null) return cb({ ok: false, error: 'no free seat' })
+    const botCount =
+      ([0, 1, 2, 3] as Seat[]).filter((s) => room.seats[s]?.isBot).length + 1
+    const name = `Bot ${botCount}`
+    const result = addBot(room, seat, name)
+    if (!result.ok) return cb({ ok: false, error: result.error })
+    cb({ ok: true, seat })
     broadcastRoomState(room)
-    broadcastViews(room)
-    armTurnTimer(room)
   })
 
   socket.on('game:action', (raw, cb: (resp: unknown) => void) => {
@@ -199,9 +250,7 @@ io.on('connection', (socket) => {
     const r = applyAction(room, playerId, parsed.data)
     if (!r.ok) return cb({ ok: false, error: r.error })
     cb({ ok: true })
-    broadcastViews(room)
-    broadcastRoomState(room)
-    armTurnTimer(room)
+    afterTransition(room)
   })
 
   socket.on('disconnect', () => {

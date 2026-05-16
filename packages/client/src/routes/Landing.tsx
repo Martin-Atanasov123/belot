@@ -3,9 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { createRoom } from '../lib/api.js'
 import { getNickname, getPlayerIdFor, setNickname } from '../lib/identity.js'
+import { useT } from '../i18n/index.js'
 import { Flourish, Monogram, CornerOrnament } from '../components/Ornaments.js'
+import { LanguageToggle } from '../components/LanguageToggle.js'
 
 export function Landing() {
+  const t = useT()
   const nav = useNavigate()
   const [nick, setNick] = useState(getNickname())
   const [joinCode, setJoinCode] = useState('')
@@ -15,7 +18,7 @@ export function Landing() {
   const persistNick = () => {
     const n = nick.trim()
     if (!n) {
-      setError('Въведи прякор за да продължиш')
+      setError(t('landing.err.nickname'))
       return false
     }
     setNickname(n)
@@ -38,13 +41,12 @@ export function Landing() {
   const onJoin = () => {
     if (!persistNick()) return
     const c = joinCode.trim().toUpperCase()
-    if (!c) { setError('Въведи код на стая'); return }
+    if (!c) { setError(t('landing.err.code')); return }
     nav(`/r/${c}`)
   }
 
   return (
     <div className="min-h-screen bg-ink relative overflow-hidden">
-      {/* Atmospheric background: vignette + soft brass halo */}
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute inset-0 bg-felt-noise opacity-90" />
         <div
@@ -57,14 +59,14 @@ export function Landing() {
         />
       </div>
 
-      {/* Corner ornaments */}
       <CornerOrnament className="absolute top-6 left-6 w-12 h-12 text-brass/40" />
       <CornerOrnament className="absolute top-6 right-6 w-12 h-12 text-brass/40" style={{ transform: 'scaleX(-1)' } as React.CSSProperties} />
       <CornerOrnament className="absolute bottom-6 left-6 w-12 h-12 text-brass/40" style={{ transform: 'scaleY(-1)' } as React.CSSProperties} />
       <CornerOrnament className="absolute bottom-6 right-6 w-12 h-12 text-brass/40" style={{ transform: 'scale(-1,-1)' } as React.CSSProperties} />
 
+      <LanguageToggle className="absolute top-5 right-1/2 translate-x-1/2 lg:right-20 lg:translate-x-0 z-30" />
+
       <main className="relative z-10 min-h-screen grid lg:grid-cols-[1.05fr_0.95fr]">
-        {/* LEFT — editorial hero */}
         <section className="flex flex-col justify-between p-8 lg:p-16">
           <motion.div
             initial={{ opacity: 0, y: -8 }}
@@ -74,7 +76,7 @@ export function Landing() {
           >
             <Monogram size={42} />
             <div>
-              <div className="eyebrow">Establ. — Anno 2026</div>
+              <div className="eyebrow">{t('common.establ')}</div>
               <div className="font-display text-xl tracking-wide text-cream">Le Salon de Belot</div>
             </div>
           </motion.div>
@@ -85,7 +87,7 @@ export function Landing() {
             transition={{ duration: 1.1, delay: 0.15 }}
             className="max-w-xl"
           >
-            <div className="eyebrow text-brass mb-4">Карти · Приятели · Реално време</div>
+            <div className="eyebrow text-brass mb-4">{t('landing.eyebrow')}</div>
             <motion.h1
               initial={{ opacity: 0, y: 12, letterSpacing: '0.4em' }}
               animate={{ opacity: 1, y: 0, letterSpacing: '0em' }}
@@ -107,8 +109,7 @@ export function Landing() {
               transition={{ delay: 1.05, duration: 0.8 }}
               className="font-display italic text-smoke/80 mt-6 text-xl max-w-md"
             >
-              Класическата игра в нов салон —{' '}
-              <span className="text-brass">с приятели,</span> в реално време, без излишно блестене.
+              {t('landing.tagline')}
             </motion.p>
           </motion.div>
 
@@ -120,23 +121,22 @@ export function Landing() {
           >
             <div className="flex items-center gap-6">
               <div>
-                <div className="eyebrow text-ash">Раздаване</div>
-                <div className="font-display italic text-cream/80 text-lg">5 + 3</div>
+                <div className="eyebrow text-ash">{t('landing.deal')}</div>
+                <div className="font-display italic text-cream/80 text-lg">{t('landing.dealValue')}</div>
               </div>
               <div>
-                <div className="eyebrow text-ash">До</div>
-                <div className="font-display italic text-cream/80 text-lg">151 точки</div>
+                <div className="eyebrow text-ash">{t('landing.to')}</div>
+                <div className="font-display italic text-cream/80 text-lg">{t('landing.toValue')}</div>
               </div>
               <div>
-                <div className="eyebrow text-ash">Игра</div>
-                <div className="font-display italic text-cream/80 text-lg">4 играча</div>
+                <div className="eyebrow text-ash">{t('landing.game')}</div>
+                <div className="font-display italic text-cream/80 text-lg">{t('landing.gameValue')}</div>
               </div>
             </div>
-            <div className="font-mono text-[10px] uppercase tracking-widest text-ash/70">N° 001 · Sofia</div>
+            <div className="font-mono text-[10px] uppercase tracking-widest text-ash/70">{t('common.sofia')}</div>
           </motion.div>
         </section>
 
-        {/* RIGHT — form card */}
         <section className="relative flex items-center justify-center p-6 lg:p-16">
           <FannedCards />
 
@@ -147,32 +147,28 @@ export function Landing() {
             className="relative z-10 w-full max-w-md plate p-8 md:p-10"
           >
             <div className="text-center mb-6">
-              <div className="eyebrow text-brass">Влез в Салона</div>
+              <div className="eyebrow text-brass">{t('landing.formTitle')}</div>
               <div className="rule-brass mt-3 w-1/2 mx-auto" />
             </div>
 
             <label className="block mb-5">
-              <span className="eyebrow text-ash">Прякор</span>
+              <span className="eyebrow text-ash">{t('landing.nickname')}</span>
               <input
                 value={nick}
                 onChange={(e) => setNick(e.target.value)}
                 maxLength={20}
                 className="input-salon w-full mt-2"
-                placeholder="както те знаят на масата"
+                placeholder={t('landing.nicknamePh')}
               />
             </label>
 
-            <button
-              onClick={onCreate}
-              disabled={busy}
-              className="btn-brass w-full mb-6"
-            >
-              {busy ? 'Подреждам масата…' : 'Започни нова партия'}
+            <button onClick={onCreate} disabled={busy} className="btn-brass w-full mb-6">
+              {busy ? t('landing.creating') : t('landing.create')}
             </button>
 
             <div className="flex items-center gap-3 my-6">
               <div className="flex-1 h-px bg-brass/30" />
-              <span className="font-display italic text-brass/70 text-sm">или се присъедини</span>
+              <span className="font-display italic text-brass/70 text-sm">{t('landing.orJoin')}</span>
               <div className="flex-1 h-px bg-brass/30" />
             </div>
 
@@ -181,10 +177,10 @@ export function Landing() {
                 value={joinCode}
                 onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
                 maxLength={6}
-                placeholder="КОД"
+                placeholder={t('landing.codePh')}
                 className="input-salon flex-1 font-mono text-center tracking-[0.4em] uppercase"
               />
-              <button onClick={onJoin} className="btn-ghost">Влез</button>
+              <button onClick={onJoin} className="btn-ghost">{t('landing.join')}</button>
             </div>
 
             {error && (

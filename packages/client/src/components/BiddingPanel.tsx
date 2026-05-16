@@ -1,18 +1,14 @@
 import { motion } from 'framer-motion'
 import type { BidContract } from '@belot/shared'
 import { useGame } from '../store/game.js'
+import { useT } from '../i18n/index.js'
 
 const ORDER: BidContract[] = ['C', 'D', 'H', 'S', 'NT', 'AT']
-const SUIT_LABEL: Record<BidContract, { glyph: string; name: string; red: boolean }> = {
-  C:  { glyph: '♣', name: 'Спатия',   red: false },
-  D:  { glyph: '♦', name: 'Каро',     red: true  },
-  H:  { glyph: '♥', name: 'Купа',     red: true  },
-  S:  { glyph: '♠', name: 'Пика',     red: false },
-  NT: { glyph: '∅', name: 'Без коз',  red: false },
-  AT: { glyph: '⁂', name: 'Всичко',   red: false },
-}
+const SUIT_GLYPH: Record<BidContract, string> = { C: '♣', D: '♦', H: '♥', S: '♠', NT: '∅', AT: '⁂' }
+const SUIT_RED: Record<BidContract, boolean> = { C: false, D: true, H: true, S: false, NT: false, AT: false }
 
 export function BiddingPanel() {
+  const t = useT()
   const view = useGame((s) => s.view)!
   const mySeat = useGame((s) => s.mySeat)
   const send = useGame((s) => s.send)
@@ -29,9 +25,9 @@ export function BiddingPanel() {
   if (!myTurn) {
     return (
       <div className="text-center py-3">
-        <div className="eyebrow text-ash">Наддаване</div>
+        <div className="eyebrow text-ash">{t('table.bidding')}</div>
         <div className="font-display italic text-cream/80 mt-1">
-          Изчакване на място <span className="text-brass">{view.turn + 1}</span>…
+          {t('bid.waitFor', { n: view.turn + 1 })}
         </div>
       </div>
     )
@@ -45,18 +41,17 @@ export function BiddingPanel() {
       className="plate px-5 py-4 max-w-[520px]"
     >
       <div className="flex items-center justify-between mb-3">
-        <div className="eyebrow text-brass">Наддаване — твой ред</div>
+        <div className="eyebrow text-brass">{t('bid.yourTurn')}</div>
         <button
           onClick={() => void send({ type: 'PASS', seat: mySeat! })}
           className="btn-ghost py-1 px-3 text-[10px]"
         >
-          Пас
+          {t('bid.pass')}
         </button>
       </div>
 
       <div className="grid grid-cols-3 gap-2 mb-3">
         {ORDER.map((c, i) => {
-          const info = SUIT_LABEL[c]
           const disabled = i <= currentBidIdx
           return (
             <button
@@ -68,11 +63,11 @@ export function BiddingPanel() {
               }`}
             >
               <div
-                className={`font-display text-3xl leading-none ${info.red ? 'text-ember' : 'text-stone-900'}`}
+                className={`font-display text-3xl leading-none ${SUIT_RED[c] ? 'text-ember' : 'text-stone-900'}`}
               >
-                {info.glyph}
+                {SUIT_GLYPH[c]}
               </div>
-              <div className="eyebrow text-stone-700 mt-1">{info.name}</div>
+              <div className="eyebrow text-stone-700 mt-1">{t(`suit.${c}.name` as `suit.${BidContract}.name`)}</div>
             </button>
           )
         })}
@@ -83,13 +78,13 @@ export function BiddingPanel() {
           onClick={() => void send({ type: 'CONTRA', seat: mySeat! })}
           className="btn-ember flex-1"
         >
-          Контра
+          {t('bid.contra')}
         </button>
         <button
           onClick={() => void send({ type: 'RECONTRA', seat: mySeat! })}
           className="btn-ember flex-1"
         >
-          Реконтра
+          {t('bid.recontra')}
         </button>
       </div>
     </motion.div>

@@ -3,9 +3,10 @@ import { io, type Socket } from 'socket.io-client'
 import type { Action, PlayerView, Seat } from '@belot/shared'
 import { SERVER_URL } from '../lib/api.js'
 
-export type PublicSeat = { seat: Seat; nickname: string | null; connected: boolean }
+export type PublicSeat = { seat: Seat; nickname: string | null; connected: boolean; isBot: boolean }
 export type PublicRoomState = {
   code: string
+  hostId: string
   seats: PublicSeat[]
   inGame: boolean
   settings: { gameTo: number; enableNT: boolean; enableAT: boolean; turnTimerSec: number; allowSpectators: boolean; botsFillEmpty: boolean }
@@ -23,6 +24,7 @@ type State = {
   connect: () => Socket
   join: (args: { code: string; playerId: string; nickname: string; isHost: boolean }) => Promise<{ ok: boolean; error?: string }>
   start: () => Promise<{ ok: boolean; error?: string }>
+  addBot: (seat?: Seat) => Promise<{ ok: boolean; error?: string }>
   send: (action: Action) => Promise<{ ok: boolean; error?: string }>
 }
 
@@ -42,7 +44,10 @@ export const useGame = create<State>((set, get) => ({
     const sock = io(SERVER_URL, { transports: ['websocket'] })
     sock.on('connect', () => set({ connected: true }))
     sock.on('disconnect', () => set({ connected: false }))
-    sock.on('room:state', (state: PublicRoomState) => set({ room: state }))
+    sock.on('room:state', (state: PublicRoomState) => {
+      const myId = get().hostId // we stored "my playerId" here on join
+      set({ room: state, amHost: !!myId && state.hostId === myId })
+    })
     sock.on('game:view', (view: PlayerView) => set({ view }))
     set({ socket: sock })
     return sock
@@ -57,10 +62,11 @@ export const useGame = create<State>((set, get) => ({
           { code, playerId, nickname },
           (resp: { ok: boolean; error?: string; seat?: Seat; state?: PublicRoomState }) => {
             if (resp.ok) {
+              const roomState = resp.state ?? null
               set({
                 mySeat: resp.seat ?? null,
-                room: resp.state ?? null,
-                amHost: isHost,
+                room: roomState,
+                amHost: roomState ? roomState.hostId === playerId : isHost,
                 hostId: playerId,
                 joinError: null,
               })
@@ -81,6 +87,17 @@ export const useGame = create<State>((set, get) => ({
       const sock = get().socket
       if (!sock) return resolve({ ok: false, error: 'no socket' })
       sock.emit('room:start', {}, (resp: { ok: boolean; error?: string }) => resolve(resp))
+    }),
+
+  addBot: (seat) =>
+    new Promise((resolve) => {
+      const sock = get().socket
+      if (!sock) return resolve({ ok: false, error: 'no socket' })
+      sock.emit(
+        'room:addBot',
+        seat !== undefined ? { seat } : {},
+        (resp: { ok: boolean; error?: string }) => resolve(resp),
+      )
     }),
 
   send: (action) =>

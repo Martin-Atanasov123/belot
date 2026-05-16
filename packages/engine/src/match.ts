@@ -333,6 +333,7 @@ function finalizeHand(snap: GameSnapshot): GameSnapshot {
     lastTrickWinnerTeam,
     announcements: snap.announcements,
     belotDeclaredBy: snap.belotIntent && snap.belotIntent.played === 2 ? snap.belotIntent.seat : null,
+    capotDoubledByContra: snap.settings.capotDoubledByContra,
   })
 
   // ── Convert raw → tens (the scoreboard unit per belot.bg). ─────────────────

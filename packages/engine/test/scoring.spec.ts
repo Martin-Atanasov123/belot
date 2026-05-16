@@ -185,4 +185,55 @@ describe('scoring', () => {
     expect(toTens(260)).toBe(26)
     expect(toTens(258)).toBe(26)
   })
+
+  it('capot + contra: default doubles everything including the 90 bonus', () => {
+    const r = scoreHand({
+      contract: 'H',
+      bidder: 0,
+      multiplier: 2, // contra
+      trickPoints: { NS: 152, EW: 0 },
+      tricksWon: { NS: 8, EW: 0 },
+      lastTrickWinnerTeam: 'NS',
+      announcements: [],
+      belotDeclaredBy: null,
+    })
+    // 152 + 10 (last) + 90 (capot) = 252, × 2 = 504
+    expect(r.capot).toBe('NS')
+    expect(r.awardedRaw.NS).toBe(504)
+  })
+
+  it('capot + contra with capotDoubledByContra=false: capot bonus stays at 90', () => {
+    const r = scoreHand({
+      contract: 'H',
+      bidder: 0,
+      multiplier: 2,
+      trickPoints: { NS: 152, EW: 0 },
+      tricksWon: { NS: 8, EW: 0 },
+      lastTrickWinnerTeam: 'NS',
+      announcements: [],
+      belotDeclaredBy: null,
+      capotDoubledByContra: false,
+    })
+    // (152 + 10) × 2 + 90 = 324 + 90 = 414
+    expect(r.awardedRaw.NS).toBe(414)
+  })
+
+  it('capot transfers to defenders on inside; capotDoubledByContra=false respects this', () => {
+    // Bidder NS, EW takes all 8 tricks (capot for EW). NS goes inside.
+    const r = scoreHand({
+      contract: 'H',
+      bidder: 0, // NS
+      multiplier: 4, // recontra
+      trickPoints: { NS: 0, EW: 152 },
+      tricksWon: { NS: 0, EW: 8 },
+      lastTrickWinnerTeam: 'EW',
+      announcements: [],
+      belotDeclaredBy: null,
+      capotDoubledByContra: false,
+    })
+    // Defenders (EW) take cards + last + capot. With capot exempt from ×4:
+    // (152 + 10) × 4 + 90 = 648 + 90 = 738
+    expect(r.outcome).toBe('inside')
+    expect(r.awardedRaw.EW).toBe(738)
+  })
 })

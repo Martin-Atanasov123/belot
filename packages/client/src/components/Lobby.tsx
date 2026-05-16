@@ -8,6 +8,31 @@ import { useT } from '../i18n/index.js'
 import { Flourish, Monogram, CornerOrnament } from './Ornaments.js'
 import { LanguageToggle } from './LanguageToggle.js'
 
+function RulesPanel() {
+  const t = useT()
+  const room = useGame((s) => s.room)!
+  const setSettings = useGame((s) => s.setSettings)
+  const capot = room.settings.capotDoubledByContra
+
+  return (
+    <div className="mb-5 plate p-3 sm:p-4 border border-brass/30">
+      <div className="eyebrow text-brass mb-2">{t('lobby.rulesTitle')}</div>
+      <label className="flex items-start gap-3 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={capot}
+          onChange={(e) => void setSettings({ capotDoubledByContra: e.target.checked })}
+          className="mt-0.5 w-4 h-4 accent-brass cursor-pointer"
+        />
+        <div className="flex-1 min-w-0">
+          <div className="font-display text-cream text-sm">{t('lobby.capotDouble')}</div>
+          <div className="text-[10px] text-ash mt-0.5 italic">{t('lobby.capotDoubleHint')}</div>
+        </div>
+      </label>
+    </div>
+  )
+}
+
 export function Lobby() {
   const t = useT()
   const room = useGame((s) => s.room)!
@@ -66,6 +91,9 @@ export function Lobby() {
               {copied ? t('lobby.copied') : t('lobby.copy')}
             </button>
           </div>
+
+          {/* Table rules — host can adjust before the game starts */}
+          {amHost && <RulesPanel />}
 
           <div className="flex items-center justify-between mb-5">
             <div className="eyebrow text-brass">{t('lobby.atTable')}</div>

@@ -31,6 +31,9 @@ export type HandInputs = {
   lastTrickWinnerTeam: Team
   announcements: Announcement[]           // already team-resolved (only the winning team's list)
   belotDeclaredBy: Seat | null            // seat that completed K+Q of trump played consecutively
+  // When false, the +90 capot bonus is NOT multiplied by contra/re-contra.
+  // Default true (matches the most common variant).
+  capotDoubledByContra?: boolean
 }
 
 // Compute hand result in RAW points. Match layer (match.ts) handles /10 rounding and carry.
@@ -124,10 +127,27 @@ export function scoreHand(input: HandInputs): HandResult {
     }
   }
 
-  // 7. multiplier applies to all awarded points and to the suspended pool
+  // 7. multiplier applies to all awarded points and to the suspended pool.
+  //    Optionally exempt the +90 capot bonus when capotDoubledByContra is false.
+  const capotDoubled = input.capotDoubledByContra !== false // default true
   awardedNS *= input.multiplier
   awardedEW *= input.multiplier
   suspendedRaw *= input.multiplier
+
+  if (!capotDoubled && capot && input.multiplier > 1) {
+    // Undo the extra multiplication on the 90-point capot bonus.
+    // The capot ALWAYS ends up with whichever team scored more this hand:
+    //   - made: with the team that took 8 tricks (= capot)
+    //   - inside: defenders take the bidder's capot (transferred above)
+    //   - suspended with a capot is essentially impossible (capot makes one team's total dwarf the other)
+    const extra = (input.multiplier - 1) * 90
+    let capotEndedWith: Team = capot
+    if (outcome === 'inside' && capot === bidderTeam) {
+      capotEndedWith = bidderTeam === 'NS' ? 'EW' : 'NS'
+    }
+    if (capotEndedWith === 'NS') awardedNS -= extra
+    else awardedEW -= extra
+  }
 
   return {
     cardPoints: { NS: cardNS, EW: cardEW },

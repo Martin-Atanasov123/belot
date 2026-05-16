@@ -9,7 +9,7 @@ export type PublicRoomState = {
   hostId: string
   seats: PublicSeat[]
   inGame: boolean
-  settings: { gameTo: number; enableNT: boolean; enableAT: boolean; turnTimerSec: number; allowSpectators: boolean; botsFillEmpty: boolean }
+  settings: { gameTo: number; enableNT: boolean; enableAT: boolean; turnTimerSec: number; allowSpectators: boolean; botsFillEmpty: boolean; capotDoubledByContra: boolean }
 }
 
 type State = {
@@ -25,6 +25,7 @@ type State = {
   join: (args: { code: string; playerId: string; nickname: string; isHost: boolean }) => Promise<{ ok: boolean; error?: string }>
   start: () => Promise<{ ok: boolean; error?: string }>
   addBot: (seat?: Seat) => Promise<{ ok: boolean; error?: string }>
+  setSettings: (patch: { capotDoubledByContra?: boolean; enableNT?: boolean; enableAT?: boolean }) => Promise<{ ok: boolean; error?: string }>
   send: (action: Action) => Promise<{ ok: boolean; error?: string }>
 }
 
@@ -98,6 +99,13 @@ export const useGame = create<State>((set, get) => ({
         seat !== undefined ? { seat } : {},
         (resp: { ok: boolean; error?: string }) => resolve(resp),
       )
+    }),
+
+  setSettings: (patch) =>
+    new Promise((resolve) => {
+      const sock = get().socket
+      if (!sock) return resolve({ ok: false, error: 'no socket' })
+      sock.emit('room:setSettings', patch, (resp: { ok: boolean; error?: string }) => resolve(resp))
     }),
 
   send: (action) =>

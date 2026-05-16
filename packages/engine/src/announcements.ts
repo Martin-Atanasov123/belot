@@ -89,11 +89,16 @@ export type SeatAnnouncements = {
 }
 
 export function scanHand(hand: readonly Card[], seat: Seat): SeatAnnouncements {
-  return {
-    seat,
-    sequences: findSequencesInHand(hand),
-    carres: findCarresInHand(hand),
-  }
+  // Belot rule: a single card cannot count toward two separate announcements.
+  // The player must pick. Canonical AI choice: take all carrés (always worth more
+  // than the sequence portion that would share a card with them), then look for
+  // sequences in what's left. Since a carré is by definition all 4 cards of a
+  // rank, removing those cards by rank from the hand is safe and complete.
+  const carres = findCarresInHand(hand)
+  const claimedRanks = new Set<Rank>(carres.map((c) => c.rank))
+  const reducedHand = hand.filter((c) => !claimedRanks.has(c.rank))
+  const sequences = findSequencesInHand(reducedHand)
+  return { seat, sequences, carres }
 }
 
 // Resolve which TEAM's announcements count, per spec §3:

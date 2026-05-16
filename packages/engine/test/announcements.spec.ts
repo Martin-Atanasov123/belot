@@ -138,3 +138,67 @@ describe('announcements: team resolution', () => {
     expect(r.totalPoints).toBe(70)
   })
 })
+
+describe('announcements: one card cannot belong to two combos', () => {
+  it('Q♠ in terca Q♠-K♠-A♠ AND in carré of queens → only the carré scores', () => {
+    // Hand: Q♠ K♠ A♠ + Q♦ Q♥ Q♣ → carré of Q (+100) AND sequence Q♠K♠A♠ (+20)
+    // Per belot.bg / training doc: one card can't count in two combos.
+    // Canonical AI choice: take the carré; the sequence loses Q♠ → only K♠ A♠ left → not a sequence.
+    const hand = [
+      C('S', 'Q'), C('S', 'K'), C('S', 'A'),
+      C('D', 'Q'), C('H', 'Q'), C('C', 'Q'),
+      C('S', '7'), C('S', '8'),
+    ]
+    const scanned = scanHand(hand, 0)
+    expect(scanned.carres).toHaveLength(1)
+    expect(scanned.carres[0]!.rank).toBe('Q')
+    // Sequence Q-K-A should NOT appear because Q♠ is consumed by the carré.
+    const hasQKA = scanned.sequences.some(
+      (s) => s.suit === 'S' && s.topRank === 'A' && s.length === 3,
+    )
+    expect(hasQKA).toBe(false)
+  })
+
+  it('kvarta J-Q-K-A in ♠ shares Q with carré of Queens → carré + leftover not a sequence', () => {
+    // Hand: J♠ Q♠ K♠ A♠ (kvarta +50) + Q♦ Q♥ Q♣ (with Q♠ above = carré +100)
+    // Carré wins (200/150/100 always >= the shared sequence). After Q♠ removed,
+    // J♠ K♠ A♠ has a gap at 10♠ → no sequence remains.
+    const hand = [
+      C('S', 'J'), C('S', 'Q'), C('S', 'K'), C('S', 'A'),
+      C('D', 'Q'), C('H', 'Q'), C('C', 'Q'),
+      C('C', '7'),
+    ]
+    const scanned = scanHand(hand, 0)
+    expect(scanned.carres).toHaveLength(1)
+    expect(scanned.carres[0]!.rank).toBe('Q')
+    expect(scanned.sequences).toHaveLength(0)
+  })
+
+  it('quinta with carré of Jacks sharing J — carré of jacks (+200) + residual terca', () => {
+    // Hand: 9♠ 10♠ J♠ Q♠ K♠ (quinta +100) + J♦ J♥ J♣ (with J♠ = carré of jacks +200)
+    // After J♠ removed: 9♠ 10♠ + Q♠ K♠ — two pairs of 2 consecutive, no sequence (need 3+).
+    const hand = [
+      C('S', '9'), C('S', '10'), C('S', 'J'), C('S', 'Q'), C('S', 'K'),
+      C('D', 'J'), C('H', 'J'), C('C', 'J'),
+    ]
+    const scanned = scanHand(hand, 0)
+    expect(scanned.carres).toHaveLength(1)
+    expect(scanned.carres[0]!.rank).toBe('J')
+    expect(scanned.carres[0]!.points).toBe(200)
+    expect(scanned.sequences).toHaveLength(0)
+  })
+
+  it('non-overlapping carré + sequence both score', () => {
+    // Hand: 7♠ 8♠ 9♠ (terca +20) + four Kings (carré +100). No card overlap.
+    const hand = [
+      C('S', '7'), C('S', '8'), C('S', '9'),
+      C('S', 'K'), C('D', 'K'), C('H', 'K'), C('C', 'K'),
+      C('D', '7'),
+    ]
+    const scanned = scanHand(hand, 0)
+    expect(scanned.carres).toHaveLength(1)
+    expect(scanned.carres[0]!.rank).toBe('K')
+    expect(scanned.sequences).toHaveLength(1)
+    expect(scanned.sequences[0]!.length).toBe(3)
+  })
+})

@@ -109,7 +109,7 @@ Tie-breaking when comparing across teams:
 
 **No announcements at all in NT.** Source: belot.bg — "При игра на „Без коз" играчите нямат право да обявяват притежаваните от тях комбинации."
 
-If one card participates in both a карé and a sequence, the holder picks which combo to count.
+If one card participates in both a карé and a sequence, the holder picks which combo to count. **Engine canonical AI choice: take the carré** (carrés are always higher-value); the sequence is then re-evaluated on the remaining cards (and dropped if it falls below 3 consecutive). See `scanHand` in `announcements.ts`.
 
 ### 2.9 Hand scoring & "inside / suspended"
 
@@ -137,6 +137,7 @@ After the 8th trick:
 - If both cross 151 in the **same** hand: the team with more wins.
 - If equal at ≥151: keep playing until one is strictly ahead.
 - **"С капо не се излиза"** (cannot win on a capot alone): if you cross 151 only because of a capot bonus, an extra hand is played (all-pass redeals don't count). **Not yet implemented in MVP.**
+- **Capot × contra is configurable.** `RoomSettings.capotDoubledByContra` — default `true` (the +90 capot is multiplied by contra/re-contra). Set `false` for the tournament variant where the capot bonus stays fixed at 90 even under contra/re-contra. Host can toggle from the lobby before the game starts. See `scoreHand` in `scoring.ts`.
 
 ---
 

@@ -94,6 +94,10 @@ export type RoomSettings = {
   turnTimerSec: number
   allowSpectators: boolean
   botsFillEmpty: boolean
+  // True (default): contra ×2 and re-contra ×4 multiply EVERYTHING including the
+  // +90 capot bonus. Some tournament variants treat the capot as exempt; set
+  // this false to keep the +90 fixed regardless of contra/re-contra.
+  capotDoubledByContra: boolean
 }
 
 export const DEFAULT_SETTINGS: RoomSettings = {
@@ -103,6 +107,7 @@ export const DEFAULT_SETTINGS: RoomSettings = {
   turnTimerSec: 30,
   allowSpectators: true,
   botsFillEmpty: true,
+  capotDoubledByContra: true,
 }
 
 export type Score = { NS: number; EW: number }

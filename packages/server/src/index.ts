@@ -238,6 +238,30 @@ io.on('connection', (socket) => {
     afterTransition(room)
   })
 
+  socket.on('room:setSettings', (raw, cb: (resp: unknown) => void) => {
+    if (!joinedRoom || !playerId) return cb({ ok: false, error: 'not in a room' })
+    const room = rooms.get(joinedRoom)
+    if (!room) return cb({ ok: false, error: 'room gone' })
+    if (room.snapshot) return cb({ ok: false, error: 'game already in progress' })
+    if (room.hostId !== playerId) return cb({ ok: false, error: 'only host can change settings' })
+    const parsed = z
+      .object({
+        capotDoubledByContra: z.boolean().optional(),
+        enableNT: z.boolean().optional(),
+        enableAT: z.boolean().optional(),
+      })
+      .safeParse(raw ?? {})
+    if (!parsed.success) return cb({ ok: false, error: 'invalid payload' })
+    // Apply only keys the host actually set (avoid overwriting with undefined).
+    const next = { ...room.settings }
+    if (parsed.data.capotDoubledByContra !== undefined) next.capotDoubledByContra = parsed.data.capotDoubledByContra
+    if (parsed.data.enableNT !== undefined) next.enableNT = parsed.data.enableNT
+    if (parsed.data.enableAT !== undefined) next.enableAT = parsed.data.enableAT
+    room.settings = next
+    cb({ ok: true })
+    broadcastRoomState(room)
+  })
+
   socket.on('room:addBot', (raw, cb: (resp: unknown) => void) => {
     if (!joinedRoom || !playerId) return cb({ ok: false, error: 'not in a room' })
     const room = rooms.get(joinedRoom)

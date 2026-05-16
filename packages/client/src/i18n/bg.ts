@@ -49,6 +49,9 @@ export const bg = {
   'lobby.start':         'Започни играта',
   'lobby.waiting':       'Изчакване — още {n}',
   'lobby.hostWillStart': 'Домакинът ще започне, щом масата се запълни…',
+  'lobby.rulesTitle':    'Правила на масата',
+  'lobby.capotDouble':   'Капото се удвоява от контра/реконтра',
+  'lobby.capotDoubleHint':'Изкл. = бонусът от 90 точки остава фиксиран',
 
   'table.room':          'Стая',
   'table.handLabel':     'Раздаване',

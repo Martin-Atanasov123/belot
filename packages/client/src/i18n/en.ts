@@ -50,6 +50,9 @@ export const en: Record<MessageKey, string> = {
   'lobby.start':         'Start the game',
   'lobby.waiting':       'Waiting — {n} more',
   'lobby.hostWillStart': 'The host will start once the table is full…',
+  'lobby.rulesTitle':    'Table rules',
+  'lobby.capotDouble':   'Capot is doubled by contra / re-contra',
+  'lobby.capotDoubleHint':'Off = the 90-point bonus stays fixed',
 
   'table.room':          'Room',
   'table.handLabel':     'Deal',

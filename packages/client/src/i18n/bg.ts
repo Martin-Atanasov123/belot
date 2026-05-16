@@ -77,6 +77,13 @@ export const bg = {
   'table.onTurn':        'На ход',
   'table.waitingFor':    'Чакаме',
   'table.collected':     'Прибра',
+  'table.openHistory':   'Виж точките по раздавания',
+  'table.matchHistory':  'История на мача',
+  'table.bidderColumn':  'Викна',
+  'table.totalRow':      'Общо',
+  'table.historyEmpty':  'Все още няма приключило раздаване.',
+  'table.youHold':       'Държиш',
+  'table.combinations':  'Комбинации',
 
   'suit.C.name':         'Спатия',
   'suit.D.name':         'Каро',

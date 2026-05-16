@@ -78,6 +78,13 @@ export const en: Record<MessageKey, string> = {
   'table.onTurn':        'Turn',
   'table.waitingFor':    'Waiting on',
   'table.collected':     'Won by',
+  'table.openHistory':   'Open hand-by-hand history',
+  'table.matchHistory':  'Match history',
+  'table.bidderColumn':  'Bid',
+  'table.totalRow':      'Total',
+  'table.historyEmpty':  'No completed hands yet.',
+  'table.youHold':       'You hold',
+  'table.combinations':  'Combinations',
 
   'suit.C.name':         'Clubs',
   'suit.D.name':         'Diamonds',

@@ -82,6 +82,7 @@ function startNewHand(args: {
   handNo: number
   hungPool?: { points: number } | null
   lastHandResult?: GameSnapshot['lastHandResult']
+  handHistory?: GameSnapshot['handHistory']
 }): GameSnapshot {
   const rng = mulberry32(args.seed)
   // Round 1: deal 5 cards each. The remaining 3 per seat are dealt when bidding completes.
@@ -110,6 +111,7 @@ function startNewHand(args: {
     rngSeed: args.seed,
     hungPool: args.hungPool ?? null,
     lastHandResult: args.lastHandResult ?? null,
+    handHistory: args.handHistory ?? [],
   }
   return snap
 }
@@ -155,6 +157,8 @@ function applyBidPhase(snap: GameSnapshot, action: Action): GameSnapshot | Engin
         matchScore: snap.matchScore,
         handNo: snap.handNo - 1, // same hand number after redeal — we incremented when starting; un-increment to keep count
         hungPool: snap.hungPool, // preserve the carry across redeals
+        lastHandResult: snap.lastHandResult,
+        handHistory: snap.handHistory,
       })
     }
     // Bidding concluded → deal the remaining 3 cards per seat using the same seed
@@ -375,7 +379,7 @@ function finalizeHand(snap: GameSnapshot): GameSnapshot {
   const gameOver = someoneReached && newScore.NS !== newScore.EW
 
   // Capture a result snapshot for the UI to show after the hand.
-  const lastHandResult: GameSnapshot['lastHandResult'] = {
+  const lastHandResult: NonNullable<GameSnapshot['lastHandResult']> = {
     handNo: snap.handNo,
     contract: snap.contract!,
     bidder: snap.bidder!,
@@ -387,6 +391,7 @@ function finalizeHand(snap: GameSnapshot): GameSnapshot {
     awardedRaw: result.awardedRaw,
     awardedTens: { NS: tensNS, EW: tensEW },
     outcome: result.outcome,
+    announcements: snap.announcements.slice(),
   }
 
   return {
@@ -395,6 +400,7 @@ function finalizeHand(snap: GameSnapshot): GameSnapshot {
     matchScore: newScore,
     hungPool: nextHungPool,
     lastHandResult,
+    handHistory: [...snap.handHistory, lastHandResult],
   }
 }
 
@@ -408,6 +414,7 @@ export function advanceHand(snap: GameSnapshot): GameSnapshot | EngineError {
     handNo: snap.handNo,
     hungPool: snap.hungPool,
     lastHandResult: snap.lastHandResult, // carry the result into the new hand for display
+    handHistory: snap.handHistory,
   })
 }
 
@@ -475,6 +482,7 @@ export function projectView(snap: GameSnapshot, you: Seat): PlayerView {
     settings: snap.settings,
     hungPool: snap.hungPool,
     lastHandResult: snap.lastHandResult,
+    handHistory: snap.handHistory.slice(),
     yourPotentialAnnouncements,
   }
 }

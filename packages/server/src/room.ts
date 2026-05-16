@@ -307,18 +307,26 @@ function decideBotBid(room: Room): Action {
   scored.sort((a, b) => b.s - a.s)
   const best = scored[0]!
 
-  // Thresholds — keep them generous so bots actually bid (5-card hand max ≈ 60-70).
-  // Suit bid: need ≥ 36 (e.g. J + 9 + couple of A/10s of side suits, plus length bonus).
-  // NT:      need ≥ 50.
-  // AT:      need ≥ 55.
-  let threshold = 36
-  if (best.c === 'NT') threshold = 50
-  if (best.c === 'AT') threshold = 55
+  // Thresholds — be selective. A 5-card hand maxes around ~70, the J+9 of a suit alone is 34.
+  // We require a clearly strong hand to commit to a contract.
+  let threshold = 44
+  if (best.c === 'NT') threshold = 58
+  if (best.c === 'AT') threshold = 64
 
-  // If someone has already bid, raising is risky — require a higher margin.
-  if (last) threshold += 6
+  // Raising over an existing bid is high-risk → demand a bigger margin.
+  if (last) threshold += 10
 
-  if (best.s >= threshold) {
+  // A pinch of randomness so the bot isn't perfectly predictable. ±4 wobble.
+  // Uses the snapshot's seed (deterministic per hand+seat) so behaviour is replay-safe.
+  const wobbleSeed = (snap.rngSeed ^ (seat * 7919)) >>> 0
+  const wobble = ((wobbleSeed % 9) - 4) // -4..+4
+  const effectiveScore = best.s + wobble
+
+  // Even meeting the threshold, occasionally pass (~15%) to feel less robotic.
+  const passDie = (wobbleSeed >>> 4) % 100
+  const occasionallyPass = passDie < 15
+
+  if (effectiveScore >= threshold && !occasionallyPass) {
     return { type: 'BID', seat, contract: best.c }
   }
 
@@ -336,7 +344,9 @@ function decideBotBid(room: Room): Action {
       if (lastTeam !== myTeam) {
         const jacks = hand.filter((c) => c.rank === 'J').length
         const aces = hand.filter((c) => c.rank === 'A').length
-        if (jacks >= 2 && aces >= 1) {
+        const tens = hand.filter((c) => c.rank === '10').length
+        // Need very strong defending hand: 3+ honour cards (J/9/A/10) including ≥1 Jack.
+        if (jacks >= 2 && (aces + tens) >= 2) {
           return { type: 'CONTRA', seat }
         }
       }

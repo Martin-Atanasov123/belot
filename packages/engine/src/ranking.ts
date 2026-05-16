@@ -50,3 +50,46 @@ export function basePointsForContract(contract: Contract): number {
 // Per BG belote: 7 < 8 < 9 < 10 < J < Q < K < A within a suit, independent of trump.
 export const SEQUENCE_RANK_ORDER: Rank[] = ['7', '8', '9', '10', 'J', 'Q', 'K', 'A']
 export const sequencePos = (r: Rank): number => SEQUENCE_RANK_ORDER.indexOf(r)
+
+// Display-order helper: sort a hand for presentation. Trump suit appears first,
+// then plain suits in alternating red/black order so adjacent suits never share
+// colour (♠ ♥ ♣ ♦ pattern, but rotated so trump leads). Within each suit cards
+// run high→low by strength (so the J of trump sits at the front during a trump
+// contract, but the A of the same suit during NT).
+const PLAIN_SUIT_ORDER: Suit[] = ['S', 'H', 'C', 'D']
+
+export function sortHandForDisplay(
+  hand: readonly Card[],
+  contract: Contract | null,
+  trump: Suit | null,
+): Card[] {
+  const cards = hand.slice()
+  const suitOrder = suitDisplayOrder(contract, trump)
+  cards.sort((a, b) => {
+    const ai = suitOrder.indexOf(a.suit)
+    const bi = suitOrder.indexOf(b.suit)
+    if (ai !== bi) return ai - bi
+    // Within a suit, sort by strength descending (under the *current* contract,
+    // so the trump J/9 lead its suit when applicable).
+    const eff: Contract = contract ?? 'C' // fallback during bidding
+    return cardStrength(b, eff, trump) - cardStrength(a, eff, trump)
+  })
+  return cards
+}
+
+function suitDisplayOrder(contract: Contract | null, trump: Suit | null): Suit[] {
+  // Without a contract yet (during bidding), use the default alternating order.
+  if (!contract || (contract !== 'AT' && contract !== 'NT' && trump === null)) {
+    return PLAIN_SUIT_ORDER
+  }
+  if (contract === 'AT') {
+    // No special trump — just alternating colour order.
+    return PLAIN_SUIT_ORDER
+  }
+  if (contract === 'NT') {
+    return PLAIN_SUIT_ORDER
+  }
+  // Suit trump: put trump first, then the other three in alternating-colour order.
+  const others = PLAIN_SUIT_ORDER.filter((s) => s !== trump)
+  return [trump as Suit, ...others]
+}

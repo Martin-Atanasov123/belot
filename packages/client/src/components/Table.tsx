@@ -6,6 +6,7 @@ import { CardView } from './Card.js'
 import { BiddingPanel } from './BiddingPanel.js'
 import { CornerOrnament, Monogram } from './Ornaments.js'
 import { LanguageToggle } from './LanguageToggle.js'
+import { sortHandForDisplay } from '../lib/sortHand.js'
 import type { Announcement, BidContract, BidHistoryEntry, Card, LastHandResult, Seat } from '@belot/shared'
 import type { MessageKey } from '../i18n/bg.js'
 
@@ -35,7 +36,7 @@ function useIsMobile() {
 }
 
 function playOffset(pos: Pos, mobile: boolean): { x: number; y: number; rot: number } {
-  const r = mobile ? 30 : 48
+  const r = mobile ? 30 : 70
   switch (pos) {
     case 'bottom': return { x:  0, y:  r, rot:   2 }
     case 'top':    return { x:  0, y: -r, rot: 182 }
@@ -45,7 +46,7 @@ function playOffset(pos: Pos, mobile: boolean): { x: number; y: number; rot: num
 }
 
 function offFelt(pos: Pos, mobile: boolean): { x: number; y: number } {
-  const big = mobile ? 100 : 150
+  const big = mobile ? 100 : 220
   switch (pos) {
     case 'bottom': return { x: 0,    y:  big }
     case 'top':    return { x: 0,    y: -big }
@@ -111,6 +112,13 @@ export function Table() {
     pos: visualSeat(p.seat as Seat),
   }))
 
+  // Sort the player's hand for display: trump suit first (during suit contracts),
+  // strongest cards within each suit, alternating colours otherwise.
+  const sortedHand = useMemo(
+    () => sortHandForDisplay(view.yourHand, view.contract, view.trump),
+    [view.yourHand, view.contract, view.trump],
+  )
+
   const isMyTurn = view.turn === mySeat
   const inBidding = view.phase === 'BIDDING'
   const inPlay = view.phase === 'PLAYING'
@@ -134,7 +142,7 @@ export function Table() {
     const occ = room.seats[seat]
     const isActive = view.turn === seat && (inBidding || inPlay)
     const myBadge = seat === mySeat
-    const size = compact ? 'px-2 py-1 min-w-[78px] max-w-[110px]' : 'px-3 py-2 min-w-[110px] sm:min-w-[130px]'
+    const size = compact ? 'px-2 py-1 min-w-[78px] max-w-[110px]' : 'px-4 py-3 min-w-[140px] sm:min-w-[170px]'
     const lastAct = inBidding ? actionsBySeat[seat] : null
 
     return (
@@ -146,13 +154,13 @@ export function Table() {
         {...(isActive ? { style: { borderColor: 'rgba(230,193,120,0.85)' } } : {})}
       >
         <div className={`font-display text-cream leading-tight truncate ${
-          compact ? 'text-[13px] max-w-[88px]' : 'text-base sm:text-lg max-w-[140px] sm:max-w-[170px]'
+          compact ? 'text-[13px] max-w-[88px]' : 'text-lg sm:text-2xl max-w-[180px] sm:max-w-[220px]'
         } ${myBadge ? 'text-brass-hi' : ''}`}>
           {occ?.nickname ?? '—'}
         </div>
 
-        <div className="flex items-center gap-1 mt-0.5">
-          <span className={`font-mono text-brass tracking-[0.14em] ${compact ? 'text-[8px]' : 'text-[9px] sm:text-[10px]'}`}>
+        <div className="flex items-center gap-1.5 mt-0.5">
+          <span className={`font-mono text-brass tracking-[0.14em] ${compact ? 'text-[8px]' : 'text-[10px] sm:text-xs'}`}>
             {view.handCounts[seat]} {t('table.cards')}
           </span>
           {occ?.isBot && (
@@ -203,43 +211,52 @@ export function Table() {
   const contract = view.contract
     ? { ...CONTRACT_GLYPH[view.contract], name: t(`suit.${view.contract}.name` as MessageKey) }
     : null
+  const bidderName = view.bidder !== null ? room.seats[view.bidder]?.nickname ?? null : null
+
+  const [historyOpen, setHistoryOpen] = useState(false)
 
   // ── Layout ─────────────────────────────────────────────────────────────
   return (
     <div className="min-h-[100dvh] bg-ink relative overflow-hidden flex flex-col no-select">
       <div className="pointer-events-none absolute inset-0 bg-felt-noise" />
 
-      <CornerOrnament className="absolute top-2 left-2 w-7 h-7 sm:w-10 sm:h-10 text-brass/30 z-10" />
-      <CornerOrnament className="absolute top-2 right-2 w-7 h-7 sm:w-10 sm:h-10 text-brass/30 z-10" style={{ transform: 'scaleX(-1)' } as React.CSSProperties} />
-      <CornerOrnament className="absolute bottom-2 left-2 w-7 h-7 sm:w-10 sm:h-10 text-brass/30 z-10" style={{ transform: 'scaleY(-1)' } as React.CSSProperties} />
-      <CornerOrnament className="absolute bottom-2 right-2 w-7 h-7 sm:w-10 sm:h-10 text-brass/30 z-10" style={{ transform: 'scale(-1,-1)' } as React.CSSProperties} />
+      <CornerOrnament className="absolute top-2 left-2 w-7 h-7 sm:w-12 sm:h-12 text-brass/30 z-10" />
+      <CornerOrnament className="absolute top-2 right-2 w-7 h-7 sm:w-12 sm:h-12 text-brass/30 z-10" style={{ transform: 'scaleX(-1)' } as React.CSSProperties} />
+      <CornerOrnament className="absolute bottom-2 left-2 w-7 h-7 sm:w-12 sm:h-12 text-brass/30 z-10" style={{ transform: 'scaleY(-1)' } as React.CSSProperties} />
+      <CornerOrnament className="absolute bottom-2 right-2 w-7 h-7 sm:w-12 sm:h-12 text-brass/30 z-10" style={{ transform: 'scale(-1,-1)' } as React.CSSProperties} />
 
       <header className="relative z-20 border-b border-brass/20 bg-ink/40 backdrop-blur-sm">
-        <div className="flex items-center justify-between px-2 sm:px-4 py-1.5 sm:py-2 gap-2">
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <Monogram size={isMobile ? 22 : 28} />
+        <div className="flex items-center justify-between px-2 sm:px-5 py-1.5 sm:py-3 gap-2">
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+            <Monogram size={isMobile ? 22 : 36} />
             <div className="min-w-0">
-              <div className="eyebrow text-ash leading-none text-[9px] sm:text-[10px]">{t('table.room')}</div>
-              <div className="font-mono text-brass tracking-[0.22em] sm:tracking-[0.28em] text-xs sm:text-sm">{room.code}</div>
+              <div className="eyebrow text-ash leading-none text-[9px] sm:text-[11px]">{t('table.room')}</div>
+              <div className="font-mono text-brass tracking-[0.22em] sm:tracking-[0.28em] text-xs sm:text-base">{room.code}</div>
             </div>
             <div className="hidden md:block ml-2">
               <div className="eyebrow text-ash leading-none">{t('table.handLabel')}</div>
-              <div className="font-display italic text-cream text-sm">{t('table.handNo', { n: view.handNo })}</div>
+              <div className="font-display italic text-cream text-base">{t('table.handNo', { n: view.handNo })}</div>
             </div>
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-            <div className="plate px-2 sm:px-3 py-1 flex items-center gap-2 sm:gap-3 font-mono text-xs sm:text-sm">
+            <button
+              type="button"
+              onClick={() => setHistoryOpen(true)}
+              title={t('table.openHistory')}
+              className="plate px-2 sm:px-4 py-1 sm:py-1.5 flex items-center gap-2 sm:gap-3 font-mono text-xs sm:text-base hover:brightness-110 transition"
+            >
               <div className="text-center leading-none">
                 <div className="eyebrow text-ash text-[8px] sm:text-[10px]">NS</div>
-                <div className="text-cream text-sm sm:text-base">{view.matchScore.NS}</div>
+                <div className="text-cream text-sm sm:text-xl">{view.matchScore.NS}</div>
               </div>
-              <div className="w-px h-5 sm:h-7 bg-brass/30" />
+              <div className="w-px h-5 sm:h-9 bg-brass/30" />
               <div className="text-center leading-none">
                 <div className="eyebrow text-ash text-[8px] sm:text-[10px]">EW</div>
-                <div className="text-cream text-sm sm:text-base">{view.matchScore.EW}</div>
+                <div className="text-cream text-sm sm:text-xl">{view.matchScore.EW}</div>
               </div>
-            </div>
+              <span className="hidden sm:inline text-brass/60 text-base ml-1">⌄</span>
+            </button>
             <LanguageToggle />
           </div>
         </div>
@@ -249,28 +266,22 @@ export function Table() {
             {t('table.handLabel')} {t('table.handNo', { n: view.handNo })}
           </div>
           {contract ? (
-            <div className="chip py-0.5 text-[10px]">
-              <span className={`text-sm leading-none ${contract.red ? 'text-ember-hi' : 'text-brass-hi'}`}>{contract.glyph}</span>
-              <span>{contract.name}</span>
-              {view.multiplier > 1 && <span className="text-ember-hi">×{view.multiplier}</span>}
-            </div>
+            <ContractChip contract={contract} multiplier={view.multiplier} bidder={bidderName} small />
           ) : (
             <div className="chip py-0.5 text-[10px]">{t('table.bidding')}</div>
           )}
         </div>
 
-        <div className="hidden md:flex absolute right-44 top-1/2 -translate-y-1/2">
+        <div className="hidden md:flex absolute right-52 top-1/2 -translate-y-1/2">
           {contract ? (
-            <div className="chip">
-              <span className={`text-base leading-none ${contract.red ? 'text-ember-hi' : 'text-brass-hi'}`}>{contract.glyph}</span>
-              <span>{contract.name}</span>
-              {view.multiplier > 1 && <span className="text-ember-hi">×{view.multiplier}</span>}
-            </div>
+            <ContractChip contract={contract} multiplier={view.multiplier} bidder={bidderName} />
           ) : (
             <div className="chip">{t('table.bidding')}</div>
           )}
         </div>
       </header>
+
+      <MatchHistoryModal open={historyOpen} onClose={() => setHistoryOpen(false)} />
 
       {/* MAIN AREA — two layouts share the same children but arrange them
           differently. Mobile (default) stacks opponents above, felt in middle.
@@ -328,22 +339,23 @@ export function Table() {
 
           <div
             className="hand-scroll flex justify-center items-end overflow-x-auto max-w-full px-1"
-            style={{ paddingTop: 10 }}
+            style={{ paddingTop: 14 }}
           >
-            {view.yourHand.map((c, i) => {
-              const total = view.yourHand.length
+            {sortedHand.map((c, i) => {
+              const total = sortedHand.length
               const fanCenter = (total - 1) / 2
               const offset = i - fanCenter
-              const tilt = (isMobile ? 2.4 : 3.2) * offset
-              const lift = Math.abs(offset) * (isMobile ? 1 : 2)
-              const overlap = isMobile ? -14 : -18
+              const tilt = (isMobile ? 2.4 : 3.6) * offset
+              const lift = Math.abs(offset) * (isMobile ? 1 : 3)
+              const overlap = isMobile ? -14 : -22
               return (
                 <motion.div
-                  key={`${c.suit}${c.rank}-${i}`}
+                  key={`${c.suit}${c.rank}`}
+                  layout
                   initial={{ opacity: 0, y: 36, rotate: tilt - 8 }}
                   animate={{ opacity: 1, y: lift, rotate: tilt }}
                   transition={{ delay: 0.04 * i, type: 'spring', stiffness: 220, damping: 24 }}
-                  {...(inPlay && isMyTurn ? { whileHover: { y: lift - 14 } } : {})}
+                  {...(inPlay && isMyTurn ? { whileHover: { y: lift - 18 } } : {})}
                   style={{ marginLeft: i === 0 ? 0 : overlap, zIndex: i }}
                 >
                   <CardView
@@ -370,6 +382,9 @@ export function Table() {
           </div>
         </div>
       </div>
+
+      {/* Dynamic announcement banner (appears, lingers ~4s, fades) */}
+      <AnnouncementsBanner />
 
       {/* Hand-result overlay shown briefly at the start of a new hand */}
       <HandResultBanner />
@@ -584,8 +599,8 @@ function PlayZone({
     return { x: o.x * 0.5, y: o.y * 0.5, scale: 0.7, opacity: 0, transition: { duration: 0.3 } }
   }
 
-  const feltSize = isMobile ? 200 : 240
-  const monoSize = isMobile ? 56 : 70
+  const feltSize = isMobile ? 200 : 320
+  const monoSize = isMobile ? 56 : 96
   const turnHolderName = room.seats[view.turn]?.nickname ?? '—'
   const liveBidName = liveBid ? room.seats[liveBid.seat]?.nickname ?? '—' : null
 
@@ -682,36 +697,103 @@ function PlayZone({
           </div>
         )}
 
-        {/* Announcements ribbon */}
-        {view.announcements.length > 0 && view.phase !== 'GAME_OVER' && (
-          <div className="absolute -top-8 sm:-top-9 left-1/2 -translate-x-1/2 flex flex-wrap gap-1 justify-center max-w-[260px] sm:max-w-[320px]">
-            {view.announcements.slice(0, 3).map((a, i) => (
-              <motion.span
-                key={i}
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.08 }}
-                className="chip text-[9px] sm:text-[10px] py-0.5"
-              >
-                {a.kind === 'sequence' && (
-                  <>
-                    {t('table.seqOf', { n: a.length, suit: SUIT_GLYPH[a.suit] ?? a.suit })}
-                    {' · '}
-                    <span className="text-brass-hi">+{a.points}</span>
-                  </>
-                )}
-                {a.kind === 'carre' && (
-                  <>
-                    {t('table.carre', { rank: a.rank })} · <span className="text-brass-hi">+{a.points}</span>
-                  </>
-                )}
-                {a.kind === 'belot' && <>{t('table.belot')} · <span className="text-brass-hi">+20</span></>}
-              </motion.span>
-            ))}
-          </div>
-        )}
+        {/* Dynamic announcements banner — see <AnnouncementsBanner/> rendered separately */}
       </div>
     </div>
+  )
+}
+
+// ── Big animated banner that appears when new announcements get awarded and
+// fades out a few seconds later. Triggered by a change in view.handNo+announcements.
+function AnnouncementsBanner() {
+  const t = useT()
+  const view = useGame((s) => s.view)!
+  const room = useGame((s) => s.room)!
+  const [visibleFor, setVisibleFor] = useState<number | null>(null)
+
+  // Use handNo as a stable signature so the banner shows once per hand.
+  const handSig = view.handNo
+  const hasAnn = view.announcements.length > 0
+
+  useEffect(() => {
+    if (!hasAnn) return
+    if (visibleFor === handSig) return
+    setVisibleFor(handSig)
+    const id = setTimeout(() => setVisibleFor(null), 4200)
+    return () => clearTimeout(id)
+  }, [hasAnn, handSig, visibleFor])
+
+  // Reset when the hand number bumps (so next hand's announcements show again).
+  useEffect(() => {
+    if (!hasAnn) setVisibleFor((prev) => (prev === handSig ? prev : null))
+  }, [hasAnn, handSig])
+
+  const show = visibleFor === handSig && hasAnn
+  if (view.phase === 'GAME_OVER') return null
+
+  // Winning team summary
+  const team = view.announcements[0] ? (view.announcements[0].seat === 0 || view.announcements[0].seat === 2 ? 'NS' : 'EW') : null
+  const total = view.announcements.reduce((s, a) => s + a.points, 0)
+  const teamLabel = team === 'NS' ? t('table.teamNS') : team === 'EW' ? t('table.teamEW') : ''
+
+  return (
+    <AnimatePresence>
+      {show && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.85, y: -12 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: -12, transition: { duration: 0.6 } }}
+          transition={{ type: 'spring', stiffness: 220, damping: 22 }}
+          className="absolute z-30 left-1/2 top-[28%] sm:top-[32%] -translate-x-1/2 pointer-events-none"
+        >
+          <div className="plate px-4 sm:px-6 py-3 sm:py-4 max-w-[92vw] sm:max-w-[480px]">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <span className="eyebrow text-brass">{t('table.combinations')}</span>
+              {teamLabel && <span className="font-display italic text-cream/80 text-sm">{teamLabel}</span>}
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
+              {view.announcements.map((a, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, scale: 0.7, y: 6 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  transition={{ delay: 0.1 + i * 0.12, type: 'spring', stiffness: 260, damping: 18 }}
+                  className="plate-cream px-2.5 sm:px-3 py-1 sm:py-1.5 font-mono text-[12px] sm:text-sm text-stone-900 flex items-center gap-1.5"
+                >
+                  {a.kind === 'sequence' && (
+                    <>
+                      <span>{a.length === 3 ? 'Терца' : a.length === 4 ? 'Кварта' : 'Квинта'}</span>
+                      <span className="text-ember">{SUIT_GLYPH[a.suit]}</span>
+                      <span className="text-brass-hi">+{a.points}</span>
+                    </>
+                  )}
+                  {a.kind === 'carre' && (
+                    <>
+                      <span>Каре {a.rank}</span>
+                      <span className="text-brass-hi">+{a.points}</span>
+                    </>
+                  )}
+                  {a.kind === 'belot' && (
+                    <>
+                      <span>Белот</span>
+                      <span className="text-brass-hi">+20</span>
+                    </>
+                  )}
+                </motion.div>
+              ))}
+            </div>
+            {total > 0 && (
+              <div className="text-center mt-2 font-mono text-brass-hi text-sm">
+                ∑ +{total}
+              </div>
+            )}
+            <div className="text-center text-ash text-[10px] mt-1 italic">
+              {(room.seats[view.announcements[0]?.seat ?? 0]?.nickname ?? '')}
+            </div>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   )
 }
 
@@ -753,6 +835,124 @@ function BiddingCenterPanel({
           {turnHolderName}
         </div>
       </div>
+    </div>
+  )
+}
+
+// ── Contract chip (suit + name + bidder + multiplier) ─────────────────
+function ContractChip({
+  contract,
+  multiplier,
+  bidder,
+  small,
+}: {
+  contract: { glyph: string; red: boolean; name: string }
+  multiplier: number
+  bidder: string | null
+  small?: boolean
+}) {
+  return (
+    <div className={`chip ${small ? 'py-0.5 text-[10px]' : 'text-sm'}`}>
+      <span className={`${small ? 'text-sm' : 'text-lg'} leading-none ${contract.red ? 'text-ember-hi' : 'text-brass-hi'}`}>
+        {contract.glyph}
+      </span>
+      <span>{contract.name}</span>
+      {bidder && <span className="text-cream/85">· {bidder}</span>}
+      {multiplier > 1 && <span className="text-ember-hi">×{multiplier}</span>}
+    </div>
+  )
+}
+
+// ── Match history modal (score-board ▸ open ▸ per-hand breakdown) ─────
+function MatchHistoryModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const t = useT()
+  const view = useGame((s) => s.view)!
+  const room = useGame((s) => s.room)!
+  if (!open) return null
+
+  const history = view.handHistory ?? []
+  return (
+    <div className="fixed inset-0 z-40 flex items-start sm:items-center justify-center p-3 sm:p-6 bg-black/65 backdrop-blur-sm">
+      <motion.div
+        initial={{ opacity: 0, y: 10, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        className="plate w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col"
+      >
+        <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-b border-brass/20">
+          <div>
+            <div className="eyebrow text-brass">{t('table.matchHistory')}</div>
+            <div className="font-display italic text-cream/80 text-sm">
+              NS {view.matchScore.NS} · EW {view.matchScore.EW}
+            </div>
+          </div>
+          <button onClick={onClose} className="text-ash hover:text-cream text-2xl leading-none">×</button>
+        </div>
+
+        <div className="overflow-y-auto px-4 sm:px-5 py-3">
+          {history.length === 0 ? (
+            <div className="font-display italic text-cream/60 text-center py-6">{t('table.historyEmpty')}</div>
+          ) : (
+            <table className="w-full text-[12px] font-mono">
+              <thead>
+                <tr className="text-ash">
+                  <th className="text-left py-1 pr-2">#</th>
+                  <th className="text-left py-1 pr-2">{t('table.contract')}</th>
+                  <th className="text-left py-1 pr-2">{t('table.bidderColumn')}</th>
+                  <th className="text-right py-1 pr-2">NS</th>
+                  <th className="text-right py-1">EW</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((h, idx) => (
+                  <tr key={idx} className="border-t border-brass/10 align-top">
+                    <td className="py-1.5 pr-2 text-cream/70">{h.handNo}</td>
+                    <td className="py-1.5 pr-2">
+                      <span className={`${CONTRACT_GLYPH[h.contract].red ? 'text-ember-hi' : 'text-brass-hi'}`}>
+                        {CONTRACT_GLYPH[h.contract].glyph}
+                      </span>{' '}
+                      <span className="text-cream">{h.contract}</span>
+                      {h.multiplier > 1 && <span className="text-ember-hi ml-1">×{h.multiplier}</span>}
+                      {h.capot && <span className="text-brass-hi ml-1">капо</span>}
+                      <div className="text-ash text-[10px] mt-0.5">
+                        {h.outcome === 'made' ? 'изкарана' : h.outcome === 'inside' ? 'вкарана' : 'висяща'}
+                      </div>
+                      {h.announcements.length > 0 && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {h.announcements.map((a, i) => (
+                            <span key={i} className="text-[10px] tracking-[0.12em] px-1.5 py-0.5 rounded bg-emerald-900/15 border border-stone-500/30 text-stone-300">
+                              {a.kind === 'sequence' && `${a.length}×${SUIT_GLYPH[a.suit]} +${a.points}`}
+                              {a.kind === 'carre' && `Каре ${a.rank} +${a.points}`}
+                              {a.kind === 'belot' && `Белот +20`}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </td>
+                    <td className="py-1.5 pr-2 text-cream/85">
+                      {room.seats[h.bidder]?.nickname ?? '—'}
+                    </td>
+                    <td className="py-1.5 pr-2 text-right">
+                      <span className="text-cream">{h.awardedTens.NS}</span>
+                      <div className="text-ash text-[10px]">{h.awardedRaw.NS}</div>
+                    </td>
+                    <td className="py-1.5 text-right">
+                      <span className="text-cream">{h.awardedTens.EW}</span>
+                      <div className="text-ash text-[10px]">{h.awardedRaw.EW}</div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-brass/30">
+                  <td colSpan={3} className="py-2 font-display italic text-brass">{t('table.totalRow')}</td>
+                  <td className="py-2 text-right text-cream-hi text-base">{view.matchScore.NS}</td>
+                  <td className="py-2 text-right text-cream-hi text-base">{view.matchScore.EW}</td>
+                </tr>
+              </tfoot>
+            </table>
+          )}
+        </div>
+      </motion.div>
     </div>
   )
 }

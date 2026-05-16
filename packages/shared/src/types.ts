@@ -144,6 +144,8 @@ export type GameSnapshot = {
   // The result of the most recently completed hand — kept so the client can show
   // the score breakdown across the start of the next hand. Cleared on a new finalize.
   lastHandResult: LastHandResult | null
+  // Append-only log of every finished hand in the match, for the score-board history view.
+  handHistory: LastHandResult[]
 }
 
 export type LastHandResult = {
@@ -158,6 +160,7 @@ export type LastHandResult = {
   awardedRaw: Score        // before /10
   awardedTens: Score       // what was added to matchScore
   outcome: 'made' | 'inside' | 'suspended'
+  announcements: Announcement[] // combinations that scored this hand
 }
 
 export type PlayerView = {
@@ -180,6 +183,8 @@ export type PlayerView = {
   settings: RoomSettings
   hungPool: { points: number } | null
   lastHandResult: LastHandResult | null
+  // Append-only log of every finished hand in the match (for score-board history).
+  handHistory: LastHandResult[]
   // Combinations the receiving player holds in their *own* hand (or held before
   // playing — reconstructs the original deal). Useful for "you can announce X"
   // hints before trick 1 resolves announcements team-wide.

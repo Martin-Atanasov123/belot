@@ -12,7 +12,7 @@ export const en: Record<MessageKey, string> = {
   'lang.toggle':         'БГ',
 
   'landing.eyebrow':     'Cards · Friends · Realtime',
-  'landing.tagline':     'The classic game in a new salon — with friends, in realtime, without the unnecessary glitter.',
+  'landing.tagline':     'The classic game on belot — with friends, in realtime.',
   'landing.deal':        'Deal',
   'landing.dealValue':   '5 + 3',
   'landing.to':          'To',

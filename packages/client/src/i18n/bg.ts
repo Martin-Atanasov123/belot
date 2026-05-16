@@ -11,7 +11,7 @@ export const bg = {
   'lang.toggle':         'EN',
 
   'landing.eyebrow':     'Карти · Приятели · На живо',
-  'landing.tagline':     'Класическата игра в нов салон — с приятели, в реално време, без излишно блестене.',
+  'landing.tagline':     'Класическата игра на белот — с приятели, в реално време.',
   'landing.deal':        'Раздаване',
   'landing.dealValue':   '5 + 3',
   'landing.to':          'До',

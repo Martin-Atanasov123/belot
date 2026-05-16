@@ -95,7 +95,7 @@ export function Landing() {
               className="font-display text-cream leading-[0.95]"
               style={{ fontSize: 'clamp(56px, 9vw, 124px)', fontWeight: 500 }}
             >
-              Бѣлотъ
+              Белот
             </motion.h1>
             <motion.div
               initial={{ opacity: 0 }}

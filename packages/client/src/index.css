@@ -1,27 +1,228 @@
+@import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap&subset=cyrillic,cyrillic-ext,latin');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  color-scheme: dark;
+  --grain-opacity: 0.06;
+}
+
 html, body, #root {
   height: 100%;
   margin: 0;
+  background: #0a0f0d;
 }
 
 body {
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  font-family: '"Plus Jakarta Sans"', system-ui, sans-serif;
+  color: #f4eccb;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-.card {
-  @apply inline-flex flex-col items-center justify-between rounded-md bg-white text-stone-900
-         shadow-md select-none cursor-pointer border border-stone-300 transition;
-  width: 56px;
-  height: 80px;
-  padding: 4px 6px;
+/* Film-grain overlay applied to the page for a printed-paper feel. */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  opacity: var(--grain-opacity);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  mix-blend-mode: overlay;
 }
-.card.red { color: #b91c1c; }
-.card.disabled { @apply opacity-50 cursor-not-allowed; }
-.card:hover:not(.disabled) { @apply -translate-y-1; }
 
-.seat-label {
-  @apply text-xs uppercase tracking-wider text-stone-300;
+/* ─────── Card face ─────── */
+.card-face {
+  width: 64px;
+  height: 92px;
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, #fbf5e0 0%, #f1e6c1 100%);
+  color: #161616;
+  box-shadow: 0 18px 30px -18px rgba(0,0,0,.7), 0 2px 4px rgba(0,0,0,.35), inset 0 0 0 1px rgba(180,150,80,.35);
+  display: grid;
+  grid-template-rows: 1fr auto 1fr;
+  padding: 4px 7px;
+  user-select: none;
+  cursor: pointer;
+  position: relative;
+  transition: transform .25s ease, box-shadow .25s ease, filter .25s ease;
+  will-change: transform;
 }
+.card-face::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border: 0.5px solid rgba(120,90,40,.35);
+  border-radius: 6px;
+  pointer-events: none;
+}
+.card-face.is-red { color: #7d1f2b; }
+.card-face:hover:not(.is-disabled) {
+  transform: translateY(-10px) rotate(-1.2deg);
+  box-shadow: 0 32px 50px -22px rgba(0,0,0,.85), 0 4px 8px rgba(0,0,0,.45), inset 0 0 0 1px rgba(180,150,80,.55);
+  filter: saturate(1.05);
+}
+.card-face.is-disabled { cursor: not-allowed; filter: brightness(.78) saturate(.85); }
+.card-face .corner { display: flex; flex-direction: column; align-items: center; line-height: 1; font-family: '"EB Garamond"', Georgia, serif; }
+.card-face .corner-top { align-self: flex-start; }
+.card-face .corner-bot { align-self: flex-end; transform: rotate(180deg); }
+.card-face .pip { font-size: 1.5rem; letter-spacing: -.02em; text-align: center; }
+.card-face .rank { font-size: 0.95rem; font-weight: 600; }
+.card-face .suit { font-size: 0.95rem; line-height: 1; }
+
+.card-small .card-face { width: 44px; height: 64px; padding: 3px 5px; border-radius: 6px; }
+.card-small .pip { font-size: 1rem; }
+.card-small .rank { font-size: 0.7rem; }
+.card-small .suit { font-size: 0.7rem; }
+
+/* Card back — diamond engine-turned brass pattern. */
+.card-back {
+  width: 64px; height: 92px;
+  border-radius: 8px;
+  background:
+    repeating-linear-gradient(45deg, #c9a25a 0 6px, #8a6a2c 6px 12px),
+    linear-gradient(180deg, #1a120a, #2b1f0e);
+  box-shadow: 0 18px 30px -18px rgba(0,0,0,.7), inset 0 0 0 1px rgba(255,255,255,.08), inset 0 0 0 4px #1a120a, inset 0 0 0 5px #c9a25a;
+}
+
+/* ─────── Brass plate (for nav, scoreboard, seat plates) ─────── */
+.plate {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.04) 0%, rgba(0,0,0,.18) 100%),
+    radial-gradient(ellipse at 50% 0%, rgba(201,162,90,.18), transparent 70%),
+    linear-gradient(180deg, #0e251c 0%, #091912 100%);
+  border: 1px solid rgba(201,162,90,.28);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 20px 40px -28px rgba(0,0,0,.8);
+  border-radius: 10px;
+}
+
+.plate-cream {
+  background:
+    linear-gradient(180deg, #f6ecca 0%, #e7d6a1 100%);
+  color: #1a1a1a;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 20px 40px -28px rgba(0,0,0,.55);
+  border-radius: 6px;
+}
+
+/* ─────── Brass ornamental rule ─────── */
+.rule-brass {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #c9a25a 20%, #e6c178 50%, #c9a25a 80%, transparent);
+  position: relative;
+}
+.rule-brass::before, .rule-brass::after {
+  content: ''; position: absolute; top: 50%; width: 6px; height: 6px; transform: translateY(-50%) rotate(45deg);
+  background: #c9a25a;
+}
+.rule-brass::before { left: calc(50% - 32px); }
+.rule-brass::after  { left: calc(50% + 26px); }
+
+/* ─────── Text helpers ─────── */
+.eyebrow {
+  font-family: '"Plus Jakarta Sans"', system-ui, sans-serif;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: #c9a25a;
+}
+.serif-italic { font-family: '"EB Garamond"', Georgia, serif; font-style: italic; }
+
+/* Inputs */
+.input-salon {
+  background: linear-gradient(180deg, rgba(0,0,0,.35), rgba(0,0,0,.2));
+  border: 1px solid rgba(201,162,90,.35);
+  color: #f4eccb;
+  border-radius: 6px;
+  padding: 12px 14px;
+  font-family: '"EB Garamond"', Georgia, serif;
+  font-size: 1.1rem;
+  letter-spacing: 0.02em;
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+.input-salon:focus {
+  outline: none;
+  border-color: #e6c178;
+  box-shadow: 0 0 0 3px rgba(201,162,90,.15);
+}
+.input-salon::placeholder { color: rgba(244,236,203,.35); font-style: italic; }
+
+/* Buttons */
+.btn-brass {
+  position: relative;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px 22px;
+  font-family: '"Plus Jakarta Sans"', system-ui, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: #1a1208;
+  background: linear-gradient(180deg, #e6c178 0%, #c9a25a 60%, #a98640 100%);
+  border: 1px solid rgba(0,0,0,.3);
+  border-radius: 4px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 14px 24px -12px rgba(201,162,90,.4);
+  cursor: pointer;
+  transition: transform .15s ease, box-shadow .2s ease, filter .15s ease;
+}
+.btn-brass:hover:not(:disabled) { transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 18px 28px -10px rgba(201,162,90,.55); }
+.btn-brass:active:not(:disabled) { transform: translateY(0); filter: brightness(.95); }
+.btn-brass:disabled { opacity: .4; cursor: not-allowed; }
+
+.btn-ghost {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 11px 18px;
+  font-family: '"Plus Jakarta Sans"', system-ui, sans-serif;
+  font-size: 0.72rem; font-weight: 600;
+  letter-spacing: 0.28em; text-transform: uppercase;
+  color: #f4eccb;
+  background: transparent;
+  border: 1px solid rgba(201,162,90,.4);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background .2s ease, border-color .2s ease, color .2s ease;
+}
+.btn-ghost:hover { background: rgba(201,162,90,.08); border-color: #c9a25a; color: #e6c178; }
+
+.btn-ember {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 9px 16px;
+  font-family: '"Plus Jakarta Sans"', system-ui, sans-serif;
+  font-size: 0.7rem; font-weight: 600; letter-spacing: 0.24em; text-transform: uppercase;
+  color: #f4eccb;
+  background: linear-gradient(180deg, #a4303f, #7d1f2b);
+  border: 1px solid rgba(0,0,0,.4);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: filter .15s ease, transform .15s ease;
+}
+.btn-ember:hover { filter: brightness(1.1); transform: translateY(-1px); }
+
+/* Drop cap / chip helpers */
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px;
+  font-family: '"Plus Jakarta Sans"', system-ui, sans-serif;
+  font-size: 0.68rem; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase;
+  background: rgba(201,162,90,.12); color: #e6c178;
+  border: 1px solid rgba(201,162,90,.35);
+  border-radius: 999px;
+}
+
+/* Seat ring pulse for the active actor */
+@keyframes brassPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(230,193,120,.0), inset 0 0 0 1px rgba(230,193,120,.5); }
+  50%      { box-shadow: 0 0 0 6px rgba(230,193,120,.18), inset 0 0 0 1px rgba(230,193,120,.85); }
+}
+.seat-active { animation: brassPulse 2.2s ease-in-out infinite; }
+
+/* Smooth scrollbars when the hand overflows on mobile */
+.hand-scroll::-webkit-scrollbar { height: 0px; }
+.hand-scroll { scrollbar-width: none; }
+
+/* No-text-select on the table for that polished feel */
+.no-select { user-select: none; }

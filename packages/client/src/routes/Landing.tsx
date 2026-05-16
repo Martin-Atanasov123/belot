@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import { createRoom } from '../lib/api.js'
 import { getNickname, getPlayerIdFor, setNickname } from '../lib/identity.js'
+import { Flourish, Monogram, CornerOrnament } from '../components/Ornaments.js'
 
 export function Landing() {
   const nav = useNavigate()
@@ -13,7 +15,7 @@ export function Landing() {
   const persistNick = () => {
     const n = nick.trim()
     if (!n) {
-      setError('Въведи прякор')
+      setError('Въведи прякор за да продължиш')
       return false
     }
     setNickname(n)
@@ -41,56 +43,201 @@ export function Landing() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-emerald-800/70 backdrop-blur rounded-xl p-6 shadow-2xl space-y-5 border border-emerald-700">
-        <h1 className="text-3xl font-bold text-center">Белот онлайн</h1>
-        <p className="text-center text-emerald-200 text-sm">
-          Играй белот с приятели в реално време.
-        </p>
-
-        <label className="block">
-          <span className="text-emerald-200 text-sm">Прякор</span>
-          <input
-            value={nick}
-            onChange={(e) => setNick(e.target.value)}
-            maxLength={20}
-            className="mt-1 w-full rounded px-3 py-2 bg-emerald-950 border border-emerald-700 focus:outline-none focus:border-emerald-400 text-white"
-            placeholder="напр. Иван"
-          />
-        </label>
-
-        <button
-          onClick={onCreate}
-          disabled={busy}
-          className="w-full rounded bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-stone-900 font-semibold py-2"
-        >
-          {busy ? 'Създавам…' : 'Създай нова стая'}
-        </button>
-
-        <div className="flex items-center gap-2 text-emerald-300 text-sm">
-          <div className="flex-1 border-t border-emerald-700" />
-          <span>или се присъедини</span>
-          <div className="flex-1 border-t border-emerald-700" />
-        </div>
-
-        <div className="flex gap-2">
-          <input
-            value={joinCode}
-            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-            maxLength={6}
-            placeholder="КОД"
-            className="flex-1 rounded px-3 py-2 bg-emerald-950 border border-emerald-700 focus:outline-none focus:border-emerald-400 text-white uppercase tracking-widest text-center"
-          />
-          <button
-            onClick={onJoin}
-            className="rounded bg-emerald-600 hover:bg-emerald-500 px-4 font-semibold"
-          >
-            Влез
-          </button>
-        </div>
-
-        {error && <div className="text-red-300 text-sm text-center">{error}</div>}
+    <div className="min-h-screen bg-ink relative overflow-hidden">
+      {/* Atmospheric background: vignette + soft brass halo */}
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute inset-0 bg-felt-noise opacity-90" />
+        <div
+          className="absolute -top-40 -right-40 w-[640px] h-[640px] rounded-full opacity-20 blur-3xl"
+          style={{ background: 'radial-gradient(circle, #c9a25a 0%, transparent 60%)' }}
+        />
+        <div
+          className="absolute -bottom-40 -left-40 w-[640px] h-[640px] rounded-full opacity-10 blur-3xl"
+          style={{ background: 'radial-gradient(circle, #7d1f2b 0%, transparent 60%)' }}
+        />
       </div>
+
+      {/* Corner ornaments */}
+      <CornerOrnament className="absolute top-6 left-6 w-12 h-12 text-brass/40" />
+      <CornerOrnament className="absolute top-6 right-6 w-12 h-12 text-brass/40" style={{ transform: 'scaleX(-1)' } as React.CSSProperties} />
+      <CornerOrnament className="absolute bottom-6 left-6 w-12 h-12 text-brass/40" style={{ transform: 'scaleY(-1)' } as React.CSSProperties} />
+      <CornerOrnament className="absolute bottom-6 right-6 w-12 h-12 text-brass/40" style={{ transform: 'scale(-1,-1)' } as React.CSSProperties} />
+
+      <main className="relative z-10 min-h-screen grid lg:grid-cols-[1.05fr_0.95fr]">
+        {/* LEFT — editorial hero */}
+        <section className="flex flex-col justify-between p-8 lg:p-16">
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, ease: 'easeOut' }}
+            className="flex items-center gap-3"
+          >
+            <Monogram size={42} />
+            <div>
+              <div className="eyebrow">Establ. — Anno 2026</div>
+              <div className="font-display text-xl tracking-wide text-cream">Le Salon de Belot</div>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 1.1, delay: 0.15 }}
+            className="max-w-xl"
+          >
+            <div className="eyebrow text-brass mb-4">Карти · Приятели · Реално време</div>
+            <motion.h1
+              initial={{ opacity: 0, y: 12, letterSpacing: '0.4em' }}
+              animate={{ opacity: 1, y: 0, letterSpacing: '0em' }}
+              transition={{ duration: 1.2, delay: 0.25, ease: [0.22, 0.61, 0.36, 1] }}
+              className="font-display text-cream leading-[0.95]"
+              style={{ fontSize: 'clamp(56px, 9vw, 124px)', fontWeight: 500 }}
+            >
+              Бѣлотъ
+            </motion.h1>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.9, duration: 0.8 }}
+              className="rule-brass mt-6 w-2/3"
+            />
+            <motion.p
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 1.05, duration: 0.8 }}
+              className="font-display italic text-smoke/80 mt-6 text-xl max-w-md"
+            >
+              Класическата игра в нов салон —{' '}
+              <span className="text-brass">с приятели,</span> в реално време, без излишно блестене.
+            </motion.p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1.35, duration: 0.8 }}
+            className="hidden lg:flex items-end justify-between text-xs text-ash"
+          >
+            <div className="flex items-center gap-6">
+              <div>
+                <div className="eyebrow text-ash">Раздаване</div>
+                <div className="font-display italic text-cream/80 text-lg">5 + 3</div>
+              </div>
+              <div>
+                <div className="eyebrow text-ash">До</div>
+                <div className="font-display italic text-cream/80 text-lg">151 точки</div>
+              </div>
+              <div>
+                <div className="eyebrow text-ash">Игра</div>
+                <div className="font-display italic text-cream/80 text-lg">4 играча</div>
+              </div>
+            </div>
+            <div className="font-mono text-[10px] uppercase tracking-widest text-ash/70">N° 001 · Sofia</div>
+          </motion.div>
+        </section>
+
+        {/* RIGHT — form card */}
+        <section className="relative flex items-center justify-center p-6 lg:p-16">
+          <FannedCards />
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.8, ease: 'easeOut' }}
+            className="relative z-10 w-full max-w-md plate p-8 md:p-10"
+          >
+            <div className="text-center mb-6">
+              <div className="eyebrow text-brass">Влез в Салона</div>
+              <div className="rule-brass mt-3 w-1/2 mx-auto" />
+            </div>
+
+            <label className="block mb-5">
+              <span className="eyebrow text-ash">Прякор</span>
+              <input
+                value={nick}
+                onChange={(e) => setNick(e.target.value)}
+                maxLength={20}
+                className="input-salon w-full mt-2"
+                placeholder="както те знаят на масата"
+              />
+            </label>
+
+            <button
+              onClick={onCreate}
+              disabled={busy}
+              className="btn-brass w-full mb-6"
+            >
+              {busy ? 'Подреждам масата…' : 'Започни нова партия'}
+            </button>
+
+            <div className="flex items-center gap-3 my-6">
+              <div className="flex-1 h-px bg-brass/30" />
+              <span className="font-display italic text-brass/70 text-sm">или се присъедини</span>
+              <div className="flex-1 h-px bg-brass/30" />
+            </div>
+
+            <div className="flex gap-2">
+              <input
+                value={joinCode}
+                onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                maxLength={6}
+                placeholder="КОД"
+                className="input-salon flex-1 font-mono text-center tracking-[0.4em] uppercase"
+              />
+              <button onClick={onJoin} className="btn-ghost">Влез</button>
+            </div>
+
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-5 text-ember-hi text-center font-display italic"
+              >
+                {error}
+              </motion.div>
+            )}
+          </motion.div>
+        </section>
+      </main>
+
+      <Flourish className="absolute bottom-3 left-1/2 -translate-x-1/2 w-64 text-brass/40" />
+    </div>
+  )
+}
+
+function FannedCards() {
+  const cards = [
+    { rank: 'A', suit: '♠', red: false, rot: -22, x: -120, y: 18 },
+    { rank: 'K', suit: '♥', red: true,  rot: -10, x: -55,  y: -8 },
+    { rank: 'Q', suit: '♦', red: true,  rot:   2, x:   18, y: -16 },
+    { rank: 'J', suit: '♣', red: false, rot:  14, x:   90, y: -2 },
+    { rank: '10', suit: '♥', red: true, rot:  26, x:  160, y: 28 },
+  ]
+  return (
+    <div
+      aria-hidden
+      className="hidden lg:block absolute left-1/2 top-[42%] -translate-x-1/2 -translate-y-1/2 opacity-90 pointer-events-none"
+      style={{ filter: 'drop-shadow(0 30px 40px rgba(0,0,0,.55))' }}
+    >
+      {cards.map((c, i) => (
+        <motion.div
+          key={i}
+          initial={{ opacity: 0, y: -40, rotate: c.rot - 8 }}
+          animate={{ opacity: 1, y: c.y, rotate: c.rot, x: c.x }}
+          transition={{ delay: 0.4 + i * 0.07, duration: 0.9, ease: [0.22, 0.61, 0.36, 1] }}
+          className="absolute"
+          style={{ left: '50%', top: '50%' }}
+        >
+          <div
+            className={`card-face ${c.red ? 'is-red' : ''}`}
+            style={{ pointerEvents: 'none', width: 84, height: 122 }}
+          >
+            <div className="corner corner-top"><span className="rank">{c.rank}</span><span className="suit">{c.suit}</span></div>
+            <div className="pip" style={{ fontSize: '2.2rem' }}>{c.suit}</div>
+            <div className="corner corner-bot"><span className="rank">{c.rank}</span><span className="suit">{c.suit}</span></div>
+          </div>
+        </motion.div>
+      ))}
     </div>
   )
 }

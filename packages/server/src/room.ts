@@ -9,12 +9,16 @@ import {
   resolveTrick,
 } from '@belot/engine'
 import {
+  bidRank,
   DEFAULT_SETTINGS,
   type Action,
+  type BidContract,
+  type Card,
   type GameSnapshot,
   type PlayerView,
   type RoomSettings,
   type Seat,
+  type Suit,
 } from '@belot/shared'
 
 export type SeatOccupant = {
@@ -235,11 +239,118 @@ export function isBotsTurn(room: Room): boolean {
   return !!occ?.isBot
 }
 
-// Bot policy: pass during bidding, pick the engine's lowest-value legal card during play.
+// ── Bot bidding heuristic ──────────────────────────────────────────────
+// Score what each potential contract would yield with the seat's 5-card hand.
+// Higher = stronger. The thresholds below decide whether to bid or pass.
+
+const TRUMP_VAL: Record<string, number> = {
+  J: 20, '9': 14, A: 11, '10': 10, K: 4, Q: 3, '8': 0, '7': 0,
+}
+const PLAIN_VAL: Record<string, number> = {
+  A: 11, '10': 10, K: 4, Q: 3, J: 2, '9': 0, '8': 0, '7': 0,
+}
+
+function evalContract(hand: readonly Card[], contract: BidContract): number {
+  // Crude evaluation: point value of the hand if this contract were played.
+  // Adds a bonus for length in the trump suit (so 4+ of a suit is preferred for that suit's bid).
+  if (contract === 'NT') {
+    return hand.reduce((s, c) => s + (PLAIN_VAL[c.rank] ?? 0), 0)
+  }
+  if (contract === 'AT') {
+    return hand.reduce((s, c) => s + (TRUMP_VAL[c.rank] ?? 0), 0)
+  }
+  // Suit trump (C/D/H/S):
+  const trumpSuit = contract as Suit
+  let score = 0
+  let lengthInTrump = 0
+  for (const c of hand) {
+    if (c.suit === trumpSuit) {
+      score += TRUMP_VAL[c.rank] ?? 0
+      lengthInTrump += 1
+    } else {
+      score += PLAIN_VAL[c.rank] ?? 0
+    }
+  }
+  // Length bonus: 4+ trump = +6, 5 trump = +12.
+  if (lengthInTrump >= 5) score += 12
+  else if (lengthInTrump >= 4) score += 6
+  return score
+}
+
+function lastBidContract(history: GameSnapshot['bidHistory']): BidContract | null {
+  for (let i = history.length - 1; i >= 0; i--) {
+    const h = history[i]!
+    if (h.type === 'BID') return h.contract
+  }
+  return null
+}
+
+// Decide a bidding action for the bot whose turn it is.
+function decideBotBid(room: Room): Action {
+  const snap = room.snapshot!
+  const seat = snap.turn
+  const passAction: Action = { type: 'PASS', seat }
+  const hand = snap.hands[seat]
+  const settings = snap.settings
+
+  // Allowed contracts at this point: must be strictly higher than current bid.
+  const last = lastBidContract(snap.bidHistory)
+  const minIdx = last ? bidRank(last) + 1 : 0
+  const options: BidContract[] = (['C', 'D', 'H', 'S', 'NT', 'AT'] as BidContract[])
+    .slice(minIdx)
+    .filter((c) => (c !== 'NT' || settings.enableNT) && (c !== 'AT' || settings.enableAT))
+
+  if (options.length === 0) return passAction
+
+  // Score every option; pick the strongest.
+  const scored = options.map((c) => ({ c, s: evalContract(hand, c) }))
+  scored.sort((a, b) => b.s - a.s)
+  const best = scored[0]!
+
+  // Thresholds — keep them generous so bots actually bid (5-card hand max ≈ 60-70).
+  // Suit bid: need ≥ 36 (e.g. J + 9 + couple of A/10s of side suits, plus length bonus).
+  // NT:      need ≥ 50.
+  // AT:      need ≥ 55.
+  let threshold = 36
+  if (best.c === 'NT') threshold = 50
+  if (best.c === 'AT') threshold = 55
+
+  // If someone has already bid, raising is risky — require a higher margin.
+  if (last) threshold += 6
+
+  if (best.s >= threshold) {
+    return { type: 'BID', seat, contract: best.c }
+  }
+
+  // Contra: if opponents have bid and our defending hand is strong, threaten contra.
+  // Cheap heuristic: 2+ Jacks AND 1+ Ace, against an opponent's bid.
+  if (last && snap.multiplier === 1) {
+    let lastBidSeat: Seat | null = null
+    for (let i = snap.bidHistory.length - 1; i >= 0; i--) {
+      const h = snap.bidHistory[i]!
+      if (h.type === 'BID') { lastBidSeat = h.seat; break }
+    }
+    if (lastBidSeat !== null) {
+      const lastTeam = (lastBidSeat === 0 || lastBidSeat === 2) ? 'NS' : 'EW'
+      const myTeam = (seat === 0 || seat === 2) ? 'NS' : 'EW'
+      if (lastTeam !== myTeam) {
+        const jacks = hand.filter((c) => c.rank === 'J').length
+        const aces = hand.filter((c) => c.rank === 'A').length
+        if (jacks >= 2 && aces >= 1) {
+          return { type: 'CONTRA', seat }
+        }
+      }
+    }
+  }
+
+  return passAction
+}
+
+// Bot policy: smart bidding during BIDDING; lowest-value legal card during play.
 export function botAction(room: Room): { seat: Seat; action: Action } | null {
   if (!room.snapshot) return null
   if (room.snapshot.phase === 'BIDDING') {
-    return { seat: room.snapshot.turn, action: { type: 'PASS', seat: room.snapshot.turn } }
+    return { seat: room.snapshot.turn, action: decideBotBid(room) }
   }
   if (room.snapshot.phase === 'PLAYING') {
     const card = autoPickOnTimeout(room.snapshot)

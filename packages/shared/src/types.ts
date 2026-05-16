@@ -141,6 +141,23 @@ export type GameSnapshot = {
   // "Висяща" carry-over: bidder's points from a suspended hand wait here for the
   // team that wins the next non-suspended hand. Already in "tens" (i.e. /10 rounded).
   hungPool: { points: number } | null
+  // The result of the most recently completed hand — kept so the client can show
+  // the score breakdown across the start of the next hand. Cleared on a new finalize.
+  lastHandResult: LastHandResult | null
+}
+
+export type LastHandResult = {
+  handNo: number
+  contract: Contract
+  bidder: Seat
+  multiplier: Multiplier
+  cardPoints: Score        // raw card pool incl. last-trick bonus
+  announcementPoints: Score
+  belotPoints: Score
+  capot: Team | null
+  awardedRaw: Score        // before /10
+  awardedTens: Score       // what was added to matchScore
+  outcome: 'made' | 'inside' | 'suspended'
 }
 
 export type PlayerView = {
@@ -162,4 +179,9 @@ export type PlayerView = {
   handNo: number
   settings: RoomSettings
   hungPool: { points: number } | null
+  lastHandResult: LastHandResult | null
+  // Combinations the receiving player holds in their *own* hand (or held before
+  // playing — reconstructs the original deal). Useful for "you can announce X"
+  // hints before trick 1 resolves announcements team-wide.
+  yourPotentialAnnouncements: Announcement[]
 }

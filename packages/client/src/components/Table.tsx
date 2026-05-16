@@ -6,7 +6,7 @@ import { CardView } from './Card.js'
 import { BiddingPanel } from './BiddingPanel.js'
 import { CornerOrnament, Monogram } from './Ornaments.js'
 import { LanguageToggle } from './LanguageToggle.js'
-import type { BidContract, BidHistoryEntry, Card, Seat } from '@belot/shared'
+import type { Announcement, BidContract, BidHistoryEntry, Card, LastHandResult, Seat } from '@belot/shared'
 import type { MessageKey } from '../i18n/bg.js'
 
 const SUIT_GLYPH: Record<string, string> = { C: '♣', D: '♦', H: '♥', S: '♠' }
@@ -35,7 +35,7 @@ function useIsMobile() {
 }
 
 function playOffset(pos: Pos, mobile: boolean): { x: number; y: number; rot: number } {
-  const r = mobile ? 34 : 48
+  const r = mobile ? 30 : 48
   switch (pos) {
     case 'bottom': return { x:  0, y:  r, rot:   2 }
     case 'top':    return { x:  0, y: -r, rot: 182 }
@@ -44,10 +44,8 @@ function playOffset(pos: Pos, mobile: boolean): { x: number; y: number; rot: num
   }
 }
 
-// Off-the-felt landing point used both for incoming slide-in and for the
-// "collected by the winner" slide-out.
 function offFelt(pos: Pos, mobile: boolean): { x: number; y: number } {
-  const big = mobile ? 110 : 150
+  const big = mobile ? 100 : 150
   switch (pos) {
     case 'bottom': return { x: 0,    y:  big }
     case 'top':    return { x: 0,    y: -big }
@@ -56,7 +54,6 @@ function offFelt(pos: Pos, mobile: boolean): { x: number; y: number } {
   }
 }
 
-// Last action per seat from the bid history (used during BIDDING to show what each player said).
 type SeatBidAction =
   | { type: 'BID'; contract: BidContract }
   | { type: 'PASS' }
@@ -122,9 +119,6 @@ export function Table() {
     void send({ type: 'PLAY', seat: mySeat, card })
   }
 
-  // While 4 cards sit on the felt, `view.turn` already points at the winner-elect
-  // (set by the engine when the trick becomes complete). We use that as the
-  // collection target so the exit animation slides the cards toward them.
   const collectionWinnerPos: Pos | null =
     trickPlays.length === 4 ? visualSeat(view.turn) : null
 
@@ -134,13 +128,13 @@ export function Table() {
   )
   const liveBid = lastBidEntry(view.bidHistory)
 
-  // ── Seat badge — name + small status (no "Място N" anymore) ──────────────
+  // ── Seat badge (no "Място N") ─────────────────────────────────────────
   const SeatBadge = ({ pos, compact = false }: { pos: Pos; compact?: boolean }) => {
     const seat = seatByPos[pos]
     const occ = room.seats[seat]
     const isActive = view.turn === seat && (inBidding || inPlay)
     const myBadge = seat === mySeat
-    const size = compact ? 'px-2 py-1 min-w-[90px]' : 'px-3 py-2 min-w-[110px] sm:min-w-[130px]'
+    const size = compact ? 'px-2 py-1 min-w-[78px] max-w-[110px]' : 'px-3 py-2 min-w-[110px] sm:min-w-[130px]'
     const lastAct = inBidding ? actionsBySeat[seat] : null
 
     return (
@@ -152,12 +146,12 @@ export function Table() {
         {...(isActive ? { style: { borderColor: 'rgba(230,193,120,0.85)' } } : {})}
       >
         <div className={`font-display text-cream leading-tight truncate ${
-          compact ? 'text-sm max-w-[100px]' : 'text-base sm:text-lg max-w-[140px] sm:max-w-[170px]'
+          compact ? 'text-[13px] max-w-[88px]' : 'text-base sm:text-lg max-w-[140px] sm:max-w-[170px]'
         } ${myBadge ? 'text-brass-hi' : ''}`}>
           {occ?.nickname ?? '—'}
         </div>
 
-        <div className="flex items-center gap-1.5 mt-0.5">
+        <div className="flex items-center gap-1 mt-0.5">
           <span className={`font-mono text-brass tracking-[0.14em] ${compact ? 'text-[8px]' : 'text-[9px] sm:text-[10px]'}`}>
             {view.handCounts[seat]} {t('table.cards')}
           </span>
@@ -173,9 +167,9 @@ export function Table() {
           )}
         </div>
 
-        {/* Bidding bubble — sits above the badge, points at it */}
-        {lastAct && (
-          <AnimatePresence>
+        {/* Bidding action bubble */}
+        <AnimatePresence>
+          {lastAct && (
             <motion.div
               key={`${seat}-${describeAction(lastAct)}`}
               initial={{ opacity: 0, y: 4, scale: 0.85 }}
@@ -186,10 +180,10 @@ export function Table() {
             >
               <BidBubble action={lastAct} compact={compact} />
             </motion.div>
-          </AnimatePresence>
-        )}
+          )}
+        </AnimatePresence>
 
-        {/* "На ход" chevron — points back at the badge from the felt side */}
+        {/* Glow ring for active player */}
         {isActive && (
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
@@ -210,6 +204,7 @@ export function Table() {
     ? { ...CONTRACT_GLYPH[view.contract], name: t(`suit.${view.contract}.name` as MessageKey) }
     : null
 
+  // ── Layout ─────────────────────────────────────────────────────────────
   return (
     <div className="min-h-[100dvh] bg-ink relative overflow-hidden flex flex-col no-select">
       <div className="pointer-events-none absolute inset-0 bg-felt-noise" />
@@ -219,7 +214,6 @@ export function Table() {
       <CornerOrnament className="absolute bottom-2 left-2 w-7 h-7 sm:w-10 sm:h-10 text-brass/30 z-10" style={{ transform: 'scaleY(-1)' } as React.CSSProperties} />
       <CornerOrnament className="absolute bottom-2 right-2 w-7 h-7 sm:w-10 sm:h-10 text-brass/30 z-10" style={{ transform: 'scale(-1,-1)' } as React.CSSProperties} />
 
-      {/* Top bar */}
       <header className="relative z-20 border-b border-brass/20 bg-ink/40 backdrop-blur-sm">
         <div className="flex items-center justify-between px-2 sm:px-4 py-1.5 sm:py-2 gap-2">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -250,7 +244,6 @@ export function Table() {
           </div>
         </div>
 
-        {/* Mobile row 2 */}
         <div className="md:hidden flex items-center justify-between px-2 pb-1.5 gap-2 text-xs">
           <div className="font-display italic text-cream/80">
             {t('table.handLabel')} {t('table.handNo', { n: view.handNo })}
@@ -266,7 +259,6 @@ export function Table() {
           )}
         </div>
 
-        {/* Desktop contract chip on row 1 */}
         <div className="hidden md:flex absolute right-44 top-1/2 -translate-y-1/2">
           {contract ? (
             <div className="chip">
@@ -280,29 +272,59 @@ export function Table() {
         </div>
       </header>
 
-      {/* Felt area */}
-      <div className="relative z-10 flex-1 grid grid-rows-[auto_1fr_auto] gap-1 sm:gap-2 px-2 sm:px-4 pt-3 pb-1 sm:pb-3">
-        <div className="flex justify-center">
-          <SeatBadge pos="top" compact={isMobile} />
+      {/* MAIN AREA — two layouts share the same children but arrange them
+          differently. Mobile (default) stacks opponents above, felt in middle.
+          Desktop (sm+) uses 3-column grid with left/right badges flanking. */}
+      <div className="relative z-10 flex-1 flex flex-col items-center gap-2 sm:gap-2 px-2 sm:px-4 pt-3 pb-1 sm:pb-3">
+
+        {/* Mobile: 3 opponent badges in a row at the top */}
+        <div className="sm:hidden flex w-full items-start justify-around gap-1 pt-3">
+          <SeatBadge pos="left" compact />
+          <SeatBadge pos="top" compact />
+          <SeatBadge pos="right" compact />
         </div>
 
-        <div className="grid grid-cols-[auto_1fr_auto] items-center gap-1 sm:gap-3">
-          <div className="flex justify-start">
-            <SeatBadge pos="left" compact={isMobile} />
+        {/* Desktop: top seat alone */}
+        <div className="hidden sm:flex justify-center">
+          <SeatBadge pos="top" />
+        </div>
+
+        {/* Middle row — different grid per breakpoint */}
+        <div className="flex-1 w-full flex items-center justify-center">
+
+          {/* Desktop: 3-column grid with side badges + felt */}
+          <div className="hidden sm:grid w-full grid-cols-[auto_1fr_auto] items-center gap-1 sm:gap-3">
+            <div className="flex justify-start">
+              <SeatBadge pos="left" />
+            </div>
+            <PlayZone
+              trickPlays={trickPlays}
+              isMobile={false}
+              collectionWinnerPos={collectionWinnerPos}
+              liveBid={liveBid}
+            />
+            <div className="flex justify-end">
+              <SeatBadge pos="right" />
+            </div>
           </div>
-          <PlayZone
-            trickPlays={trickPlays}
-            isMobile={isMobile}
-            collectionWinnerPos={collectionWinnerPos}
-            liveBid={liveBid}
-          />
-          <div className="flex justify-end">
-            <SeatBadge pos="right" compact={isMobile} />
+
+          {/* Mobile: felt alone, dead-centered */}
+          <div className="sm:hidden flex items-center justify-center w-full">
+            <PlayZone
+              trickPlays={trickPlays}
+              isMobile={true}
+              collectionWinnerPos={collectionWinnerPos}
+              liveBid={liveBid}
+            />
           </div>
         </div>
 
-        <div className="flex flex-col items-center gap-1.5 sm:gap-3">
+        {/* Bottom: your tools (bidding + hand + badge) */}
+        <div className="flex flex-col items-center gap-1.5 sm:gap-3 w-full">
           {inBidding && <BiddingPanel />}
+
+          {/* "You can announce" hint */}
+          <YourCombosHint />
 
           <div
             className="hand-scroll flex justify-center items-end overflow-x-auto max-w-full px-1"
@@ -348,11 +370,14 @@ export function Table() {
           </div>
         </div>
       </div>
+
+      {/* Hand-result overlay shown briefly at the start of a new hand */}
+      <HandResultBanner />
     </div>
   )
 }
 
-// ── Bidding bubble (per-seat last action) ──────────────────────────────
+// ── Per-seat last action bubble ───────────────────────────────────────
 function BidBubble({ action, compact }: { action: SeatBidAction; compact: boolean }) {
   if (!action) return null
   const base = `inline-flex items-center gap-1 px-2 py-0.5 rounded-full border ${
@@ -361,9 +386,7 @@ function BidBubble({ action, compact }: { action: SeatBidAction; compact: boolea
 
   if (action.type === 'PASS') {
     return (
-      <div className={`${base} bg-stone-900/60 border-stone-500/40 text-stone-300`}>
-        ПАС
-      </div>
+      <div className={`${base} bg-stone-900/60 border-stone-500/40 text-stone-300`}>ПАС</div>
     )
   }
   if (action.type === 'CONTRA' || action.type === 'RECONTRA') {
@@ -387,6 +410,137 @@ function describeAction(a: SeatBidAction): string {
   if (!a) return ''
   if (a.type === 'BID') return `b:${a.contract}`
   return a.type.toLowerCase()
+}
+
+// ── Your-combinations hint ─────────────────────────────────────────────
+// Shows the player what announcements they hold (before trick 1 freezes them).
+function YourCombosHint() {
+  const view = useGame((s) => s.view)!
+  // Show during BIDDING (so the player can decide whether their hand is worth bidding)
+  // and during PLAYING up until announcements freeze (= before the first trick resolves).
+  // We approximate the freeze: announcements is non-empty once any team's are recorded;
+  // and `lastTrick` becomes non-null only after the very first trick collects.
+  const showDuringBidding = view.phase === 'BIDDING'
+  const showDuringFirstTrick = view.phase === 'PLAYING' && view.lastTrick === null
+  if (!showDuringBidding && !showDuringFirstTrick) return null
+  if (view.contract === 'NT') return null
+  if (!view.yourPotentialAnnouncements || view.yourPotentialAnnouncements.length === 0) return null
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -4 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="plate-cream px-3 py-1.5 flex flex-wrap items-center gap-1.5 max-w-[420px]"
+    >
+      <span className="eyebrow text-stone-700 text-[9px] sm:text-[10px]">Държиш</span>
+      {view.yourPotentialAnnouncements.map((a, i) => (
+        <CombinationChip key={i} a={a} />
+      ))}
+    </motion.div>
+  )
+}
+
+function CombinationChip({ a }: { a: Announcement }) {
+  if (a.kind === 'sequence') {
+    return (
+      <span className="font-mono text-[10px] tracking-[0.12em] px-1.5 py-0.5 rounded bg-emerald-900/15 border border-stone-500/30 text-stone-800">
+        {a.length === 3 ? 'Терца' : a.length === 4 ? 'Кварта' : 'Квинта'} {SUIT_GLYPH[a.suit]}
+        <span className="text-brass-hi ml-1">+{a.points}</span>
+      </span>
+    )
+  }
+  if (a.kind === 'carre') {
+    return (
+      <span className="font-mono text-[10px] tracking-[0.12em] px-1.5 py-0.5 rounded bg-emerald-900/15 border border-stone-500/30 text-stone-800">
+        Каре {a.rank}<span className="text-brass-hi ml-1">+{a.points}</span>
+      </span>
+    )
+  }
+  return null
+}
+
+// ── Hand-result banner (shown briefly between hands) ───────────────────
+function HandResultBanner() {
+  const view = useGame((s) => s.view)!
+  const room = useGame((s) => s.room)!
+  const [visible, setVisible] = useState(false)
+  const [shownFor, setShownFor] = useState<number | null>(null)
+  const r = view.lastHandResult
+
+  useEffect(() => {
+    if (!r) return
+    if (shownFor === r.handNo) return
+    setVisible(true)
+    setShownFor(r.handNo)
+    const id = setTimeout(() => setVisible(false), 6000)
+    return () => clearTimeout(id)
+  }, [r, shownFor])
+
+  if (!r) return null
+
+  return (
+    <AnimatePresence>
+      {visible && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          className="absolute top-20 left-1/2 -translate-x-1/2 z-30 pointer-events-auto"
+        >
+          <HandResultCard r={r} bidderName={room.seats[r.bidder]?.nickname ?? '—'} onClose={() => setVisible(false)} />
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+}
+
+function HandResultCard({ r, bidderName, onClose }: { r: LastHandResult; bidderName: string; onClose: () => void }) {
+  const outcomeLabel =
+    r.outcome === 'made' ? 'Изкарана' : r.outcome === 'inside' ? 'Вкарана' : 'Висяща'
+  const c = CONTRACT_GLYPH[r.contract]
+  return (
+    <div className="plate px-4 py-3 sm:px-5 sm:py-4 max-w-[340px] sm:max-w-[400px] text-sm">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="flex items-center gap-2">
+          <div className="eyebrow text-brass text-[9px]">Раздаване {r.handNo}</div>
+          <span className={`font-mono text-base leading-none ${c.red ? 'text-ember-hi' : 'text-brass-hi'}`}>{c.glyph}</span>
+          {r.multiplier > 1 && <span className="font-mono text-[10px] text-ember-hi">×{r.multiplier}</span>}
+        </div>
+        <button onClick={onClose} className="text-ash hover:text-cream text-lg leading-none">×</button>
+      </div>
+
+      <div className="font-display italic text-cream/80 text-xs mb-2">
+        {bidderName} · {outcomeLabel}
+      </div>
+
+      <ResultRow label="Карти" ns={r.cardPoints.NS} ew={r.cardPoints.EW} />
+      {(r.announcementPoints.NS + r.announcementPoints.EW) > 0 && (
+        <ResultRow label="Обявки" ns={r.announcementPoints.NS} ew={r.announcementPoints.EW} />
+      )}
+      {(r.belotPoints.NS + r.belotPoints.EW) > 0 && (
+        <ResultRow label="Белот" ns={r.belotPoints.NS} ew={r.belotPoints.EW} />
+      )}
+      {r.capot && (
+        <ResultRow label="Капо +90" ns={r.capot === 'NS' ? 90 : 0} ew={r.capot === 'EW' ? 90 : 0} />
+      )}
+
+      <div className="rule-brass my-2" />
+
+      <ResultRow label="Общо точки" ns={r.awardedRaw.NS} ew={r.awardedRaw.EW} bold />
+      <ResultRow label="÷ 10 (на табло)" ns={r.awardedTens.NS} ew={r.awardedTens.EW} bold brass />
+    </div>
+  )
+}
+
+function ResultRow({ label, ns, ew, bold, brass }: { label: string; ns: number; ew: number; bold?: boolean; brass?: boolean }) {
+  const color = brass ? 'text-brass-hi' : bold ? 'text-cream' : 'text-cream/80'
+  return (
+    <div className={`grid grid-cols-[1fr_auto_auto] items-baseline gap-3 font-mono text-[11px] ${color}`}>
+      <span className={bold ? 'font-display italic not-italic' : ''}>{label}</span>
+      <span className="text-right">{ns}</span>
+      <span className="text-right">{ew}</span>
+    </div>
+  )
 }
 
 // ── Central play zone ──────────────────────────────────────────────────
@@ -413,8 +567,6 @@ function PlayZone({
     return { x: o.x, y: o.y, rot }
   }
 
-  // When `collectionWinnerPos` is set (4 cards on the table waiting to resolve),
-  // each card's exit prop slides it toward the winner's edge.
   const exitFor = (cardPos: Pos) => {
     if (collectionWinnerPos) {
       const o = offFelt(collectionWinnerPos, isMobile)
@@ -428,35 +580,29 @@ function PlayZone({
         transition: { duration: 0.55, ease: [0.55, 0.06, 0.68, 0.19] as const },
       }
     }
-    // Fallback: same direction it came from
     const o = offFelt(cardPos, isMobile)
     return { x: o.x * 0.5, y: o.y * 0.5, scale: 0.7, opacity: 0, transition: { duration: 0.3 } }
   }
 
-  const feltSize = isMobile ? 180 : 240
-  const monoSize = isMobile ? 50 : 70
-
-  // Whose turn is it (visible during BIDDING / PLAYING) — name only.
+  const feltSize = isMobile ? 200 : 240
+  const monoSize = isMobile ? 56 : 70
   const turnHolderName = room.seats[view.turn]?.nickname ?? '—'
   const liveBidName = liveBid ? room.seats[liveBid.seat]?.nickname ?? '—' : null
 
   return (
-    <div className={`flex items-center justify-center ${isMobile ? 'min-h-[230px]' : 'min-h-[300px] md:min-h-[330px]'}`}>
-      <div className="relative">
+    <div className="flex items-center justify-center w-full">
+      <div className="relative" style={{ width: feltSize, height: feltSize }}>
         {/* Felt circle */}
         <div
-          className="rounded-full border border-brass/25 shadow-[inset_0_0_60px_rgba(0,0,0,0.55)]"
+          className="absolute inset-0 rounded-full border border-brass/25 shadow-[inset_0_0_60px_rgba(0,0,0,0.55)]"
           style={{
-            width: feltSize,
-            height: feltSize,
             background:
               'radial-gradient(circle at 50% 40%, rgba(28,82,64,.9), rgba(14,37,28,.95) 70%, rgba(7,18,14,1) 100%)',
           }}
-        >
-          <div className="absolute inset-2 sm:inset-3 rounded-full border border-brass/15" />
-          <div className="absolute inset-0 flex items-center justify-center opacity-25">
-            <Monogram size={monoSize} />
-          </div>
+        />
+        <div className="absolute inset-2 sm:inset-3 rounded-full border border-brass/15" />
+        <div className="absolute inset-0 flex items-center justify-center opacity-25 pointer-events-none">
+          <Monogram size={monoSize} />
         </div>
 
         {/* Played cards */}
@@ -482,7 +628,7 @@ function PlayZone({
           </AnimatePresence>
         </div>
 
-        {/* Idle / turn indicator overlay */}
+        {/* Idle overlay */}
         {trickPlays.length === 0 && view.phase !== 'GAME_OVER' && (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-3 pointer-events-none">
             {inBidding ? (
@@ -498,14 +644,14 @@ function PlayZone({
           </div>
         )}
 
-        {/* Mid-play "waiting for X" — shown when trick has 1..3 cards (in tens etc.) */}
+        {/* Waiting-for caption */}
         {inPlay && trickPlays.length > 0 && trickPlays.length < 4 && (
           <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap font-mono text-[10px] sm:text-xs tracking-[0.18em] text-brass uppercase">
             ↻ {t('table.waitingFor')} {turnHolderName}
           </div>
         )}
 
-        {/* Brief "collected by X" overlay during the 0.55s slide-to-winner */}
+        {/* Collected by caption */}
         {trickPlays.length === 0 && view.lastTrick && view.phase === 'PLAYING' && (
           <motion.div
             initial={{ opacity: 0, y: -4 }}
@@ -569,7 +715,6 @@ function PlayZone({
   )
 }
 
-// Center info shown during BIDDING: live highest bid + whose turn it is.
 function BiddingCenterPanel({
   liveBid,
   liveBidName,

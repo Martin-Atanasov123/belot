@@ -81,6 +81,7 @@ function startNewHand(args: {
   matchScore: { NS: number; EW: number }
   handNo: number
   hungPool?: { points: number } | null
+  lastHandResult?: GameSnapshot['lastHandResult']
 }): GameSnapshot {
   const rng = mulberry32(args.seed)
   // Round 1: deal 5 cards each. The remaining 3 per seat are dealt when bidding completes.
@@ -108,6 +109,7 @@ function startNewHand(args: {
     settings: args.settings,
     rngSeed: args.seed,
     hungPool: args.hungPool ?? null,
+    lastHandResult: args.lastHandResult ?? null,
   }
   return snap
 }
@@ -372,11 +374,27 @@ function finalizeHand(snap: GameSnapshot): GameSnapshot {
   const someoneReached = newScore.NS >= target || newScore.EW >= target
   const gameOver = someoneReached && newScore.NS !== newScore.EW
 
+  // Capture a result snapshot for the UI to show after the hand.
+  const lastHandResult: GameSnapshot['lastHandResult'] = {
+    handNo: snap.handNo,
+    contract: snap.contract!,
+    bidder: snap.bidder!,
+    multiplier: snap.multiplier,
+    cardPoints: result.cardPoints,
+    announcementPoints: result.announcementPoints,
+    belotPoints: result.belotPoints,
+    capot: result.capot,
+    awardedRaw: result.awardedRaw,
+    awardedTens: { NS: tensNS, EW: tensEW },
+    outcome: result.outcome,
+  }
+
   return {
     ...snap,
     phase: gameOver ? 'GAME_OVER' : 'HAND_OVER',
     matchScore: newScore,
     hungPool: nextHungPool,
+    lastHandResult,
   }
 }
 
@@ -389,6 +407,7 @@ export function advanceHand(snap: GameSnapshot): GameSnapshot | EngineError {
     matchScore: snap.matchScore,
     handNo: snap.handNo,
     hungPool: snap.hungPool,
+    lastHandResult: snap.lastHandResult, // carry the result into the new hand for display
   })
 }
 
@@ -407,6 +426,35 @@ export function projectView(snap: GameSnapshot, you: Seat): PlayerView {
           cards: snap.completedTricks[snap.completedTricks.length - 1]!.cards,
         }
       : null
+
+  // Compute the player's *own* possible combinations on the cards they were dealt.
+  // Skipped in NT (no announcements allowed). We reconstruct their original deal
+  // by re-adding any cards they've already played this hand.
+  let yourPotentialAnnouncements: import('@belot/shared').Announcement[] = []
+  if (snap.contract !== 'NT' && (snap.phase === 'BIDDING' || snap.phase === 'PLAYING')) {
+    const myDealHand =
+      snap.phase === 'BIDDING'
+        ? snap.hands[you].slice()
+        : reconstructDealHand(snap, you)
+    const scanned = scanHand(myDealHand, you)
+    yourPotentialAnnouncements = [
+      ...scanned.sequences.map((sq) => ({
+        kind: 'sequence' as const,
+        seat: you,
+        suit: sq.suit,
+        topRank: sq.topRank,
+        length: sq.length,
+        points: sq.points,
+      })),
+      ...scanned.carres.map((c) => ({
+        kind: 'carre' as const,
+        seat: you,
+        rank: c.rank,
+        points: c.points,
+      })),
+    ]
+  }
+
   return {
     you,
     phase: snap.phase,
@@ -426,6 +474,8 @@ export function projectView(snap: GameSnapshot, you: Seat): PlayerView {
     handNo: snap.handNo,
     settings: snap.settings,
     hungPool: snap.hungPool,
+    lastHandResult: snap.lastHandResult,
+    yourPotentialAnnouncements,
   }
 }
 

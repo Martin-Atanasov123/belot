@@ -17,7 +17,7 @@ import { isLegalPlay, trickWinner } from './legalMoves.js'
 import { mulberry32 } from './rng.js'
 import { cardPoints } from './ranking.js'
 import { holdsBelotPair, resolveAnnouncements, scanHand } from './announcements.js'
-import { scoreHand } from './scoring.js'
+import { scoreHand, toTens } from './scoring.js'
 
 export type EngineError = { error: string }
 export const isError = (x: unknown): x is EngineError =>
@@ -80,6 +80,7 @@ function startNewHand(args: {
   settings: RoomSettings
   matchScore: { NS: number; EW: number }
   handNo: number
+  hungPool?: { points: number } | null
 }): GameSnapshot {
   const rng = mulberry32(args.seed)
   const hands = dealFromSeed(rng, args.dealer)
@@ -104,6 +105,7 @@ function startNewHand(args: {
     handNo: args.handNo + 1,
     settings: args.settings,
     rngSeed: args.seed,
+    hungPool: args.hungPool ?? null,
   }
   return snap
 }
@@ -148,6 +150,7 @@ function applyBidPhase(snap: GameSnapshot, action: Action): GameSnapshot | Engin
         settings: snap.settings,
         matchScore: snap.matchScore,
         handNo: snap.handNo - 1, // same hand number after redeal — we incremented when starting; un-increment to keep count
+        hungPool: snap.hungPool, // preserve the carry across redeals
       })
     }
     next = {
@@ -231,7 +234,13 @@ function applyPlayPhase(snap: GameSnapshot, action: Action): GameSnapshot | Engi
     }
 
     // After the first trick, freeze announcements based on the original deal hands.
-    if (next.completedTricks.length === 1 && next.announcements.length === 0) {
+    // No announcements at all in NT (belot.bg: "При игра на „Без коз" играчите нямат право
+    // да обявяват притежаваните от тях комбинации").
+    if (
+      next.completedTricks.length === 1 &&
+      next.announcements.length === 0 &&
+      snap.contract !== 'NT'
+    ) {
       const perSeat = ([0, 1, 2, 3] as Seat[]).map((s) =>
         scanHand(
           // Use the *original* deal hand: reconstruct by adding back played card for this seat from trick.
@@ -285,18 +294,54 @@ function finalizeHand(snap: GameSnapshot): GameSnapshot {
     belotDeclaredBy: snap.belotIntent && snap.belotIntent.played === 2 ? snap.belotIntent.seat : null,
   })
 
-  const newScore = {
-    NS: snap.matchScore.NS + result.awarded.NS,
-    EW: snap.matchScore.EW + result.awarded.EW,
+  // ── Convert raw → tens (the scoreboard unit per belot.bg). ─────────────────
+  let tensNS = toTens(result.awardedRaw.NS)
+  let tensEW = toTens(result.awardedRaw.EW)
+
+  // ── Hung-pool ("висяща") handling. ─────────────────────────────────────────
+  // If a previous hand was suspended, its bidder's tens carry to whoever wins
+  // THIS hand. We award the carry to whichever team scored more this hand.
+  // If this hand is *also* suspended, the new bidder's tens are added to the
+  // pool and the pool is preserved (defenders still record their own points).
+  let nextHungPool: { points: number } | null = null
+  const carry = snap.hungPool?.points ?? 0
+
+  if (result.outcome === 'suspended') {
+    const winnerThisHand: 'NS' | 'EW' | null =
+      tensNS > tensEW ? 'NS' : tensEW > tensNS ? 'EW' : null
+    if (winnerThisHand === null) {
+      // Even defenders deadlocked — extremely rare. Roll the carry forward.
+      nextHungPool = { points: carry + toTens(result.suspendedRaw) }
+    } else {
+      // Defenders record their own tens. Bidder's suspended tens accumulate with any prior carry.
+      nextHungPool = { points: carry + toTens(result.suspendedRaw) }
+    }
+  } else {
+    // Made or inside: the carry pays out to whichever team scored more this hand.
+    if (carry > 0) {
+      if (tensNS > tensEW) tensNS += carry
+      else if (tensEW > tensNS) tensEW += carry
+      else nextHungPool = { points: carry } // truly equal — pool survives
+    }
   }
+
+  const newScore = {
+    NS: snap.matchScore.NS + tensNS,
+    EW: snap.matchScore.EW + tensEW,
+  }
+
+  // ── End-of-game detection. ─────────────────────────────────────────────────
+  // Match ends when one team hits the target AND has strictly more tens than the other.
+  // If both reach target same hand, higher wins; if they tie, play continues.
   const target = snap.settings.gameTo
-  const gameOver =
-    (newScore.NS >= target || newScore.EW >= target) && newScore.NS !== newScore.EW
+  const someoneReached = newScore.NS >= target || newScore.EW >= target
+  const gameOver = someoneReached && newScore.NS !== newScore.EW
 
   return {
     ...snap,
     phase: gameOver ? 'GAME_OVER' : 'HAND_OVER',
     matchScore: newScore,
+    hungPool: nextHungPool,
   }
 }
 
@@ -308,6 +353,7 @@ export function advanceHand(snap: GameSnapshot): GameSnapshot | EngineError {
     settings: snap.settings,
     matchScore: snap.matchScore,
     handNo: snap.handNo,
+    hungPool: snap.hungPool,
   })
 }
 
@@ -344,6 +390,7 @@ export function projectView(snap: GameSnapshot, you: Seat): PlayerView {
     matchScore: snap.matchScore,
     handNo: snap.handNo,
     settings: snap.settings,
+    hungPool: snap.hungPool,
   }
 }
 

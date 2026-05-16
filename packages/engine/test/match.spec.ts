@@ -10,11 +10,14 @@ function play(snap: GameSnapshot, action: Action): GameSnapshot {
 }
 
 function autoBidToAT(snap: GameSnapshot): GameSnapshot {
-  // Seat 0 bids AT, three passes after.
-  let s = play(snap, { type: 'BID', seat: 0, contract: 'AT' })
-  s = play(s, { type: 'PASS', seat: 1 })
-  s = play(s, { type: 'PASS', seat: 2 })
-  s = play(s, { type: 'PASS', seat: 3 })
+  // First bidder of the current hand bids AT, the next three pass.
+  let s = snap
+  const first = s.turn
+  s = play(s, { type: 'BID', seat: first, contract: 'AT' })
+  for (let i = 1; i <= 3; i++) {
+    const seat = ((first + i) % 4) as Seat
+    s = play(s, { type: 'PASS', seat })
+  }
   return s
 }
 

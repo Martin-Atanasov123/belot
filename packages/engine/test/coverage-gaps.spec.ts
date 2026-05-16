@@ -170,7 +170,7 @@ describe('scoring: more edge cases', () => {
       belotDeclaredBy: null,
     })
     expect(r.capot).toBe('EW')
-    expect(r.awarded.EW).toBe(152 + 10 + 90)
+    expect(r.awardedRaw.EW).toBe(152 + 10 + 90)
   })
 
   it('EW bidder inside (bidder team < defenders)', () => {
@@ -185,8 +185,8 @@ describe('scoring: more edge cases', () => {
       belotDeclaredBy: null,
     })
     expect(r.insideAppliedAgainst).toBe('EW')
-    expect(r.awarded.EW).toBe(0)
-    expect(r.awarded.NS).toBe(162)
+    expect(r.awardedRaw.EW).toBe(0)
+    expect(r.awardedRaw.NS).toBe(162)
   })
 
   it('EW belot stays on inside', () => {
@@ -201,7 +201,7 @@ describe('scoring: more edge cases', () => {
       belotDeclaredBy: 1, // EW
     })
     expect(r.insideAppliedAgainst).toBe('EW')
-    expect(r.awarded.EW).toBe(20)
+    expect(r.awardedRaw.EW).toBe(20)
   })
 
   it('announcements assigned to NS and EW correctly', () => {

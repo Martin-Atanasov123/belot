@@ -1,14 +1,25 @@
 import type { Announcement, Contract, Multiplier, Seat, Suit, Team } from '@belot/shared'
 import { teamOf } from '@belot/shared'
 
+// Outcome categories per belot.bg:
+//   'made'      = изкарана  — bidder strictly outscored defenders; each team keeps its own.
+//   'inside'    = вкарана  — defenders strictly outscored bidder; defenders take EVERYTHING.
+//   'suspended' = висяща   — equal totals; bidder's points "hang" for the next hand winner.
+export type HandOutcome = 'made' | 'inside' | 'suspended'
+
 export type HandResult = {
   cardPoints: { NS: number; EW: number }
   announcementPoints: { NS: number; EW: number }
   belotPoints: { NS: number; EW: number }
   lastTrickBonusTeam: Team
   capot: Team | null
-  awarded: { NS: number; EW: number }
-  insideAppliedAgainst: Team | null // 'NS' means bidder team was NS and went inside
+  // Raw points awarded this hand, BEFORE the /10 round-down to match tens.
+  // Match layer is responsible for converting to tens and applying carry.
+  awardedRaw: { NS: number; EW: number }
+  // If outcome === 'suspended', bidder's raw points sit here for carry; awardedRaw[bidder] == 0.
+  suspendedRaw: number
+  outcome: HandOutcome
+  insideAppliedAgainst: Team | null // 'NS' means NS was the bidder and went inside
 }
 
 export type HandInputs = {
@@ -19,101 +30,104 @@ export type HandInputs = {
   tricksWon: { NS: number; EW: number }   // counts (0..8) — to detect капо
   lastTrickWinnerTeam: Team
   announcements: Announcement[]           // already team-resolved (only the winning team's list)
-  belotDeclaredBy: Seat | null            // seat that completed K+Q of trump played on consecutive tricks
+  belotDeclaredBy: Seat | null            // seat that completed K+Q of trump played consecutively
 }
 
-// 162-point reference for trump suit contracts; 258 for AT (with halving variant differences); 130 for NT (doubled).
-// We follow the spec §3 + clarified default: NT totals doubled.
-//
-// Rounding rule for inside detection: bidder team must score STRICTLY MORE than defenders to "make" the contract.
-// Equal → bidder goes inside (вътре); defenders take everything.
-//
-// We compute in this order (standard BG belote):
-//   1. Sum card points + last-trick +10 → cardPoints per team.
-//   2. Add announcements (already team-resolved).
-//   3. Add белот (+20) to the team of belotDeclaredBy if any.
-//   4. Detect капо: if one team won all 8 tricks → +90 to them.
-//   5. Determine inside: bidder team's total (cards+ann+belot+capot) must exceed defenders' total.
-//   6. If inside: defenders get bidder's card+ann+capot points TOO. Белот always stays with the declarer
-//      (standard rule). Some variants assign all to defenders — we follow "belot stays."
-//   7. Apply multiplier to FINAL awarded points (contra ×2, re-contra ×4).
-//   8. NT contract → double card points (announcements already at face).
-//   9. AT contract → leave as is (we keep raw 258 pool).
-//
-// The exact "halving" variants for AT vary; this implementation uses raw points and the +10 last-trick.
+// Compute hand result in RAW points. Match layer (match.ts) handles /10 rounding and carry.
+// Per belot.bg:
+//   - изкарана: bidder > defender → each team keeps own
+//   - вкарана:  bidder < defender → defenders take everything (announcements + capot + bidder's cards). Belot stays with declarer.
+//   - висяща:  bidder == defender → bidder scores 0; bidder's raw total hangs for next hand winner; defenders keep own
+//   - Multiplier ×2 / ×4 multiplies ALL awarded points & premiums.
+//   - NT: card points × 2 (capot bonus NOT doubled). No announcements in NT — caller should pass [].
+//   - AT: card points kept as-is.
 export function scoreHand(input: HandInputs): HandResult {
   const bidderTeam = teamOf(input.bidder)
-  const defTeam: Team = bidderTeam === 'NS' ? 'EW' : 'NS'
+  void (bidderTeam) // referenced below
 
-  // 1. card points + last trick
+  // 1. card points + last-trick bonus
   const lastBonus = 10
   let cardNS = input.trickPoints.NS + (input.lastTrickWinnerTeam === 'NS' ? lastBonus : 0)
   let cardEW = input.trickPoints.EW + (input.lastTrickWinnerTeam === 'EW' ? lastBonus : 0)
 
-  // NT doubling
+  // 2. NT card-point doubling
   if (input.contract === 'NT') {
     cardNS *= 2
     cardEW *= 2
   }
 
-  // 2. announcements → team buckets
+  // 3. announcements → team buckets. In NT no announcements should be present
+  //    (caller enforces); we still bucket whatever was passed.
   let annNS = 0
   let annEW = 0
   for (const a of input.announcements) {
     const t = teamOf(a.seat)
-    const pts = input.contract === 'NT' ? a.points * 2 : a.points
+    const pts = a.points // announcements not doubled in NT (already disabled there)
     if (t === 'NS') annNS += pts
     else annEW += pts
   }
 
-  // 3. belot
+  // 4. belot (+20) — never in NT
   let belNS = 0
   let belEW = 0
-  if (input.belotDeclaredBy !== null) {
+  if (input.belotDeclaredBy !== null && input.contract !== 'NT') {
     if (teamOf(input.belotDeclaredBy) === 'NS') belNS = 20
     else belEW = 20
   }
 
-  // 4. capot
+  // 5. capot (+90, NOT doubled by NT but IS multiplied by contra/recontra)
   let capot: Team | null = null
   let capotNS = 0
   let capotEW = 0
-  if (input.tricksWon.NS === 8) {
-    capot = 'NS'
-    capotNS = 90
-  } else if (input.tricksWon.EW === 8) {
-    capot = 'EW'
-    capotEW = 90
-  }
+  if (input.tricksWon.NS === 8) { capot = 'NS'; capotNS = 90 }
+  else if (input.tricksWon.EW === 8) { capot = 'EW'; capotEW = 90 }
 
-  // 5. inside detection: total per team
+  // 6. team totals BEFORE inside/suspended adjustment
   const totalNS = cardNS + annNS + belNS + capotNS
   const totalEW = cardEW + annEW + belEW + capotEW
   const bidderTotal = bidderTeam === 'NS' ? totalNS : totalEW
-  const defTotal = bidderTeam === 'NS' ? totalEW : totalNS
+  const defTotal    = bidderTeam === 'NS' ? totalEW : totalNS
 
-  let awardedNS = totalNS
-  let awardedEW = totalEW
+  let awardedNS = 0
+  let awardedEW = 0
+  let suspendedRaw = 0
+  let outcome: HandOutcome
   let inside: Team | null = null
 
-  if (bidderTotal <= defTotal) {
+  if (bidderTotal > defTotal) {
+    // изкарана — each team keeps its own
+    outcome = 'made'
+    awardedNS = totalNS
+    awardedEW = totalEW
+  } else if (bidderTotal < defTotal) {
+    // вкарана — defenders take ALL card points + announcements + capot.
+    // Bidder's belot stays with declarer (common BG convention).
+    outcome = 'inside'
     inside = bidderTeam
-    // Defenders take bidder's cards+ann+capot. Bidder's belot stays.
     if (bidderTeam === 'NS') {
-      awardedNS = belNS // keep only belot
+      awardedNS = belNS
       awardedEW = totalEW + cardNS + annNS + capotNS
     } else {
       awardedEW = belEW
       awardedNS = totalNS + cardEW + annEW + capotEW
     }
+  } else {
+    // висяща — bidder scores 0, their points hang. Defenders keep own.
+    outcome = 'suspended'
+    suspendedRaw = bidderTotal
+    if (bidderTeam === 'NS') {
+      awardedNS = belNS // belot still records (sit with declarer)
+      awardedEW = totalEW
+    } else {
+      awardedEW = belEW
+      awardedNS = totalNS
+    }
   }
 
-  // 7. multiplier
-  awardedNS = awardedNS * input.multiplier
-  awardedEW = awardedEW * input.multiplier
-
-  // BG convention: scores are typically rounded to nearest 10, with floor rules. Many sites
-  // skip rounding for app simplicity. We don't round here; rounding can be a settings flag.
+  // 7. multiplier applies to all awarded points and to the suspended pool
+  awardedNS *= input.multiplier
+  awardedEW *= input.multiplier
+  suspendedRaw *= input.multiplier
 
   return {
     cardPoints: { NS: cardNS, EW: cardEW },
@@ -121,7 +135,20 @@ export function scoreHand(input: HandInputs): HandResult {
     belotPoints: { NS: belNS, EW: belEW },
     lastTrickBonusTeam: input.lastTrickWinnerTeam,
     capot,
-    awarded: { NS: awardedNS, EW: awardedEW },
+    awardedRaw: { NS: awardedNS, EW: awardedEW },
+    suspendedRaw,
+    outcome,
     insideAppliedAgainst: inside,
   }
 }
+
+// Convert raw card-pool points to match "tens" (the unit the scoreboard tracks).
+// Source: belot.bg — "разделени на 10 и закръглени до цяло число".
+// Half-up rounding for MVP; specific AT/висящ edge cases simplified.
+export function toTens(rawPoints: number): number {
+  if (rawPoints <= 0) return 0
+  return Math.round(rawPoints / 10)
+}
+
+// (kept for tests that imported it under the old name)
+export type { Team, Suit, Contract }

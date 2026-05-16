@@ -138,6 +138,9 @@ export type GameSnapshot = {
   handNo: number
   settings: RoomSettings
   rngSeed: number
+  // "Висяща" carry-over: bidder's points from a suspended hand wait here for the
+  // team that wins the next non-suspended hand. Already in "tens" (i.e. /10 rounded).
+  hungPool: { points: number } | null
 }
 
 export type PlayerView = {
@@ -158,4 +161,5 @@ export type PlayerView = {
   matchScore: Score
   handNo: number
   settings: RoomSettings
+  hungPool: { points: number } | null
 }

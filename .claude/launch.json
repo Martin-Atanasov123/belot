@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "belot-server",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "-w", "@belot/server"],
+      "port": 3001
+    },
+    {
+      "name": "belot-client",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "-w", "@belot/client"],
+      "port": 5173
+    }
+  ]
+}

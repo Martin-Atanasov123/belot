@@ -117,7 +117,10 @@ export function Landing() {
             </motion.div>
           </motion.div>
 
+          <FannedCards />
           <motion.div
+          
+
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 1.2, duration: 0.7 }}
@@ -130,11 +133,11 @@ export function Landing() {
             </div>
             <div className="font-mono text-[10px] uppercase tracking-widest text-ash/70">{t('common.sofia')}</div>
           </motion.div>
+          
         </div>
 
         {/* Right column — form (the primary CTA) */}
         <div className="relative flex items-center justify-center p-6 sm:p-10 lg:p-16">
-          <FannedCards />
 
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -464,11 +467,11 @@ function MiniCard({ rank, suit, red, rotate, dx, dy }: { rank: string; suit: str
 
 function FannedCards() {
   const cards = [
-    { rank: 'A', suit: '♠', red: false, rot: -22, x: -120, y: 18 },
-    { rank: 'K', suit: '♥', red: true,  rot: -10, x: -55,  y: -8 },
-    { rank: 'Q', suit: '♦', red: true,  rot:   2, x:   18, y: -16 },
-    { rank: 'J', suit: '♣', red: false, rot:  14, x:   90, y: -2 },
-    { rank: '10', suit: '♥', red: true, rot:  26, x:  160, y: 28 },
+    { rank: 'J', suit: '♠', red: false, rot: -22, x: -120, y: 18 },
+    { rank: '9', suit: '♥', red: true,  rot: -10, x: -55,  y: -8 },
+    { rank: 'A', suit: '♦', red: true,  rot:   2, x:   18, y: -16 },
+    { rank: '10', suit: '♣', red: false, rot:  14, x:   90, y: -2 },
+    { rank: 'K', suit: '♥', red: true, rot:  26, x:  160, y: 28 },
   ]
   return (
     <div

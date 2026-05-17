@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap&subset=cyrillic,cyrillic-ext,latin');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;0,800;0,900;1,500;1,600;1,700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap&subset=cyrillic,cyrillic-ext,latin');
 
 @tailwind base;
 @tailwind components;
@@ -92,7 +92,7 @@ body::after {
   flex-direction: column;
   align-items: center;
   line-height: 1;
-  font-family: '"EB Garamond"', Georgia, serif;
+  font-family: '"Playfair Display"', Georgia, serif;
   font-weight: 600;
   padding: 1px 2px;
 }
@@ -141,9 +141,8 @@ body::after {
   border-radius: 6px;
 }
 .face-letter {
-  font-family: '"EB Garamond"', Georgia, serif;
-  font-style: italic;
-  font-weight: 600;
+  font-family: '"Playfair Display"', Georgia, serif;
+  font-weight: 700;
   font-size: 2.6rem;
   line-height: 0.9;
   letter-spacing: -.02em;
@@ -237,7 +236,7 @@ body::after {
   text-transform: uppercase;
   color: #c9a25a;
 }
-.serif-italic { font-family: '"EB Garamond"', Georgia, serif; font-style: italic; }
+.serif-italic { font-family: '"Playfair Display"', Georgia, serif; font-style: italic; }
 
 /* Inputs */
 .input-salon {
@@ -246,7 +245,7 @@ body::after {
   color: #f4eccb;
   border-radius: 6px;
   padding: 12px 14px;
-  font-family: '"EB Garamond"', Georgia, serif;
+  font-family: '"Playfair Display"', Georgia, serif;
   font-size: 1.1rem;
   letter-spacing: 0.02em;
   transition: border-color .2s ease, box-shadow .2s ease;

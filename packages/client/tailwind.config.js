@@ -18,7 +18,7 @@ export default {
         ash:    '#9aa39c',
       },
       fontFamily: {
-        display: ['"EB Garamond"', 'Georgia', 'serif'],
+        display: ['"Playfair Display"', 'Georgia', 'serif'],
         sans:    ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
         mono:    ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
       },

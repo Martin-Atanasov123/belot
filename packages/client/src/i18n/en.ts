@@ -29,13 +29,22 @@ export const en: Record<MessageKey, string> = {
   'landing.join':        'Enter',
   'landing.err.nickname':'Please enter a nickname to continue',
   'landing.err.code':    'Please enter a room code',
+  'landing.rulesLink':   'Belot rules',
+
+  'rules.eyebrow':       'Table rules',
+  'rules.title':         'Belot · rules',
+  'rules.backHome':      '← Back',
+  'rules.source':        'References: belot.bg / belot/rules · CLAUDE.md in the repo',
 
   'room.connecting':     'Connecting…',
   'room.notFound':       'Room not found',
   'room.joinTitle':      'Join room',
   'room.joinSub':        'Pick a nickname and take a seat',
   'room.joinBtn':        'Take a seat',
+  'room.spectateBtn':    'Watch the game',
   'room.code':           'Room code',
+  'table.spectating':    'You are spectating',
+  'table.spectatorCount':'{n} watching',
 
   'lobby.roomNo':        'Room №',
   'lobby.invite':        'Invitation',

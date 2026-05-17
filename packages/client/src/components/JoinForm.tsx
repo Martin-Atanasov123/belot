@@ -8,10 +8,12 @@ export function JoinForm({
   code,
   initialNick,
   onSubmit,
+  onSpectate,
 }: {
   code: string
   initialNick: string
   onSubmit: (nick: string) => void
+  onSpectate?: (nick: string) => void
 }) {
   const t = useT()
   const [nick, setNick] = useState(initialNick)
@@ -25,6 +27,11 @@ export function JoinForm({
       return
     }
     onSubmit(n)
+  }
+  const spectate = () => {
+    const n = nick.trim()
+    if (!n) { setErr(t('landing.err.nickname')); return }
+    onSpectate?.(n)
   }
 
   return (
@@ -70,6 +77,12 @@ export function JoinForm({
         <button type="submit" className="btn-brass w-full">
           {t('room.joinBtn')}
         </button>
+
+        {onSpectate && (
+          <button type="button" onClick={spectate} className="btn-ghost w-full mt-3">
+            {t('room.spectateBtn')}
+          </button>
+        )}
 
         {err && (
           <motion.div

@@ -5,6 +5,7 @@ import {
   hasPendingTrick,
   isError,
   newMatch,
+  projectSpectatorView,
   projectView,
   resolveTrick,
 } from '@belot/engine'
@@ -26,6 +27,12 @@ export type SeatOccupant = {
   nickname: string
   connected: boolean
   isBot: boolean
+  lastReactionAt?: number // ms timestamp; used to rate-limit emote spam
+}
+
+export type Spectator = {
+  playerId: string
+  nickname: string
 }
 
 export type Room = {
@@ -33,6 +40,7 @@ export type Room = {
   hostId: string
   settings: RoomSettings
   seats: Record<Seat, SeatOccupant | null>
+  spectators: Map<string, Spectator>
   snapshot: GameSnapshot | null
   createdAt: number
   turnTimer: NodeJS.Timeout | null
@@ -46,6 +54,8 @@ export function noOccupantsConnected(room: Room): boolean {
     const occ = room.seats[s]
     if (occ && occ.connected) return false
   }
+  // If a spectator is still hanging out, keep the room alive too.
+  if (room.spectators.size > 0) return false
   return true
 }
 
@@ -55,6 +65,7 @@ export type PublicRoomState = {
   seats: Array<{ seat: Seat; nickname: string | null; connected: boolean; isBot: boolean }>
   inGame: boolean
   settings: RoomSettings
+  spectatorCount: number
 }
 
 export function createRoom(code: string, hostId: string, settings: Partial<RoomSettings> = {}): Room {
@@ -64,6 +75,7 @@ export function createRoom(code: string, hostId: string, settings: Partial<RoomS
     settings: { ...DEFAULT_SETTINGS, ...settings },
     seats: { 0: null, 1: null, 2: null, 3: null },
     snapshot: null,
+    spectators: new Map(),
     createdAt: Date.now(),
     turnTimer: null,
     emptyTimer: null,
@@ -84,6 +96,7 @@ export function publicState(room: Room): PublicRoomState {
     })),
     inGame: room.snapshot !== null,
     settings: room.settings,
+    spectatorCount: room.spectators.size,
   }
 }
 
@@ -175,6 +188,23 @@ export function applyAction(
 export function snapshotForSeat(room: Room, seat: Seat): PlayerView | null {
   if (!room.snapshot) return null
   return projectView(room.snapshot, seat)
+}
+
+export function snapshotForSpectator(room: Room): PlayerView | null {
+  if (!room.snapshot) return null
+  return projectSpectatorView(room.snapshot)
+}
+
+export function addSpectator(room: Room, playerId: string, nickname: string) {
+  room.spectators.set(playerId, { playerId, nickname })
+}
+
+export function removeSpectator(room: Room, playerId: string) {
+  room.spectators.delete(playerId)
+}
+
+export function isSpectator(room: Room, playerId: string): boolean {
+  return room.spectators.has(playerId)
 }
 
 // Returns the currently-acting seat and an auto-played card for timer expiry.

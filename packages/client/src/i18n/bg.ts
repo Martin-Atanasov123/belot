@@ -28,13 +28,22 @@ export const bg = {
   'landing.join':        'Влез',
   'landing.err.nickname':'Въведи прякор, за да продължиш',
   'landing.err.code':    'Въведи код на стая',
+  'landing.rulesLink':   'Правила на белот',
+
+  'rules.eyebrow':       'Правила на масата',
+  'rules.title':         'Белот · правила',
+  'rules.backHome':      '← Обратно',
+  'rules.source':        'Препратки: belot.bg / belot/rules · CLAUDE.md в репото',
 
   'room.connecting':     'Свързване…',
   'room.notFound':       'Стаята не е намерена',
   'room.joinTitle':      'Присъединяване към стая',
   'room.joinSub':        'Избери прякор и заеми място',
   'room.joinBtn':        'Влез на масата',
+  'room.spectateBtn':    'Гледай играта',
   'room.code':           'Код на стаята',
+  'table.spectating':    'Гледаш играта',
+  'table.spectatorCount':'{n} гледат',
 
   'lobby.roomNo':        'Стая №',
   'lobby.invite':        'Покана',

@@ -10,6 +10,7 @@ import {
 } from '@belot/shared'
 import {
   addBot,
+  addSpectator,
   allSeatsFilled,
   applyAction,
   autoPlay,
@@ -21,11 +22,14 @@ import {
   findFreeSeat,
   findSeatByPlayerId,
   isBotsTurn,
+  isSpectator,
   noOccupantsConnected,
   publicState,
+  removeSpectator,
   resolveCurrentTrick,
   setConnected,
   snapshotForSeat,
+  snapshotForSpectator,
   startGame,
   takeSeat,
   trickIsPending,
@@ -114,6 +118,15 @@ function broadcastViews(room: Room) {
     if (!occ) continue
     const view: PlayerView = snapshotForSeat(room, seat)!
     io.to(`player:${occ.playerId}`).emit('game:view', view)
+  }
+  // Spectators get the public projection — never any seat's hand.
+  if (room.spectators.size > 0) {
+    const view = snapshotForSpectator(room)
+    if (view) {
+      for (const sp of room.spectators.values()) {
+        io.to(`player:${sp.playerId}`).emit('game:view', view)
+      }
+    }
   }
 }
 
@@ -238,6 +251,65 @@ io.on('connection', (socket) => {
     afterTransition(room)
   })
 
+  // ── Reactions / emotes ────────────────────────────────────────────
+  // Six allow-listed glyphs. Anything else is rejected — no free-text chat.
+  const ALLOWED_REACTIONS = ['👏', '🤔', '😂', '🔥', '🙏', '😴'] as const
+  socket.on('room:react', (raw, cb: (resp: unknown) => void) => {
+    if (!joinedRoom || !playerId) return cb({ ok: false, error: 'not in a room' })
+    const room = rooms.get(joinedRoom)
+    if (!room) return cb({ ok: false, error: 'room gone' })
+    const seat = findSeatByPlayerId(room, playerId)
+    if (seat === null) return cb({ ok: false, error: 'spectators cannot react' })
+    const parsed = z
+      .object({ emote: z.enum(ALLOWED_REACTIONS as unknown as [string, ...string[]]) })
+      .safeParse(raw ?? {})
+    if (!parsed.success) return cb({ ok: false, error: 'invalid emote' })
+
+    // Rate-limit: max one reaction per 1500ms per seat.
+    const now = Date.now()
+    const occ = room.seats[seat]!
+    if (occ.lastReactionAt && now - occ.lastReactionAt < 1500) {
+      return cb({ ok: false, error: 'too fast' })
+    }
+    occ.lastReactionAt = now
+
+    cb({ ok: true })
+    io.to(`room:${room.code}`).emit('room:reaction', { seat, emote: parsed.data.emote, ts: now })
+  })
+
+  socket.on('room:spectate', (raw, cb: (resp: unknown) => void) => {
+    const parsed = z
+      .object({
+        code: z.string(),
+        playerId: z.string().min(1),
+        nickname: z.string().min(1).max(20),
+      })
+      .safeParse(raw)
+    if (!parsed.success) return cb({ ok: false, error: 'invalid payload' })
+
+    const room = rooms.get(parsed.data.code.toUpperCase())
+    if (!room) return cb({ ok: false, error: 'room not found' })
+
+    // Can't spectate a seat you also occupy.
+    if (findSeatByPlayerId(room, parsed.data.playerId) !== null) {
+      return cb({ ok: false, error: 'already seated' })
+    }
+    addSpectator(room, parsed.data.playerId, parsed.data.nickname)
+    joinedRoom = room.code
+    playerId = parsed.data.playerId
+    socket.join(`room:${room.code}`)
+    socket.join(`player:${playerId}`)
+    cancelEmptyTimer(room)
+
+    cb({ ok: true, state: publicState(room) })
+    broadcastRoomState(room)
+    if (room.snapshot) {
+      // Send this spectator the public view immediately.
+      const view = snapshotForSpectator(room)
+      if (view) socket.emit('game:view', view)
+    }
+  })
+
   socket.on('room:setSettings', (raw, cb: (resp: unknown) => void) => {
     if (!joinedRoom || !playerId) return cb({ ok: false, error: 'not in a room' })
     const room = rooms.get(joinedRoom)
@@ -304,7 +376,11 @@ io.on('connection', (socket) => {
     if (!joinedRoom || !playerId) return
     const room = rooms.get(joinedRoom)
     if (!room) return
-    setConnected(room, playerId, false)
+    if (isSpectator(room, playerId)) {
+      removeSpectator(room, playerId)
+    } else {
+      setConnected(room, playerId, false)
+    }
     broadcastRoomState(room)
     if (noOccupantsConnected(room)) scheduleEmptyTimer(room)
   })

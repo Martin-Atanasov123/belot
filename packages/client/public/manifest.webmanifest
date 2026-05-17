@@ -1,0 +1,21 @@
+{
+  "name": "Le Salon de Belot — Белот онлайн",
+  "short_name": "Белот",
+  "description": "Класически белот за приятели, в реално време.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0a0f0d",
+  "theme_color": "#0a0f0d",
+  "lang": "bg",
+  "categories": ["games", "entertainment"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    }
+  ]
+}

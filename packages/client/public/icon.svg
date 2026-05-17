@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <defs>
+    <linearGradient id="brass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e6c178"/>
+      <stop offset="100%" stop-color="#a98640"/>
+    </linearGradient>
+    <radialGradient id="felt" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#1c5240"/>
+      <stop offset="100%" stop-color="#0a0f0d"/>
+    </radialGradient>
+  </defs>
+  <rect width="192" height="192" rx="32" fill="url(#felt)"/>
+  <circle cx="96" cy="96" r="84" fill="none" stroke="url(#brass)" stroke-width="2.5"/>
+  <circle cx="96" cy="96" r="74" fill="none" stroke="url(#brass)" stroke-width="1" opacity="0.5"/>
+  <text x="96" y="118" text-anchor="middle"
+        font-family="EB Garamond, Georgia, serif"
+        font-size="86" font-style="italic" font-weight="500"
+        fill="url(#brass)">Б</text>
+</svg>

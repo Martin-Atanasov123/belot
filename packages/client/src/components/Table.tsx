@@ -6,6 +6,7 @@ import { CardView } from './Card.js'
 import { BiddingPanel } from './BiddingPanel.js'
 import { CornerOrnament, Monogram } from './Ornaments.js'
 import { LanguageToggle } from './LanguageToggle.js'
+import { FloatingReactions, ReactionsBar } from './Reactions.js'
 import { sortHandForDisplay } from '../lib/sortHand.js'
 import type { Announcement, BidContract, BidHistoryEntry, Card, LastHandResult, Seat } from '@belot/shared'
 import type { MessageKey } from '../i18n/bg.js'
@@ -89,12 +90,16 @@ export function Table() {
   const t = useT()
   const view = useGame((s) => s.view)!
   const room = useGame((s) => s.room)!
-  const mySeat = useGame((s) => s.mySeat)!
+  const mySeat = useGame((s) => s.mySeat)
+  const amSpectator = useGame((s) => s.amSpectator)
   const send = useGame((s) => s.send)
   const isMobile = useIsMobile()
 
+  // Spectators view the felt with seat 0 (South) at the bottom — no rotation,
+  // since they have no seat of their own. Otherwise rotate so your seat is bottom.
   const visualSeat = (seat: Seat): Pos => {
-    const rel = (seat - mySeat + 4) % 4
+    const anchor = mySeat ?? 0
+    const rel = (seat - anchor + 4) % 4
     return (['bottom', 'left', 'top', 'right'] as const)[rel]!
   }
 
@@ -119,11 +124,12 @@ export function Table() {
     [view.yourHand, view.contract, view.trump],
   )
 
-  const isMyTurn = view.turn === mySeat
+  const isMyTurn = mySeat !== null && view.turn === mySeat
   const inBidding = view.phase === 'BIDDING'
   const inPlay = view.phase === 'PLAYING'
 
   const onPlay = (card: Card) => {
+    if (mySeat === null) return // spectators can't play
     void send({ type: 'PLAY', seat: mySeat, card })
   }
 
@@ -141,7 +147,7 @@ export function Table() {
     const seat = seatByPos[pos]
     const occ = room.seats[seat]
     const isActive = view.turn === seat && (inBidding || inPlay)
-    const myBadge = seat === mySeat
+    const myBadge = mySeat !== null && seat === mySeat
     const size = compact ? 'px-2 py-1 min-w-[78px] max-w-[110px]' : 'px-4 py-3 min-w-[140px] sm:min-w-[170px]'
     const lastAct = inBidding ? actionsBySeat[seat] : null
 
@@ -237,6 +243,12 @@ export function Table() {
               <div className="eyebrow text-ash leading-none">{t('table.handLabel')}</div>
               <div className="font-display italic text-cream text-base">{t('table.handNo', { n: view.handNo })}</div>
             </div>
+            {room.spectatorCount > 0 && (
+              <div className="hidden sm:flex items-center gap-1 font-mono text-[10px] text-brass-hi tracking-[0.14em]">
+                <span>·</span>
+                <span>{t('table.spectatorCount', { n: room.spectatorCount })}</span>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
@@ -332,10 +344,21 @@ export function Table() {
 
         {/* Bottom: your tools (bidding + hand + badge) */}
         <div className="flex flex-col items-center gap-1.5 sm:gap-3 w-full">
-          {inBidding && <BiddingPanel />}
+          {inBidding && !amSpectator && <BiddingPanel />}
 
-          {/* "You can announce" hint */}
-          <YourCombosHint />
+          {amSpectator && (
+            <div className="plate px-4 py-2 font-display italic text-cream/80 text-sm sm:text-base">
+              {t('table.spectating')}
+              {room.spectatorCount > 1 && (
+                <span className="ml-2 font-mono text-[10px] text-ash">
+                  · {t('table.spectatorCount', { n: room.spectatorCount })}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* "You can announce" hint — players only */}
+          {!amSpectator && <YourCombosHint />}
 
           <div
             className="hand-scroll flex justify-center items-end overflow-x-auto max-w-full px-1"
@@ -388,6 +411,10 @@ export function Table() {
 
       {/* Hand-result overlay shown briefly at the start of a new hand */}
       <HandResultBanner />
+
+      {/* Quick reactions — bottom-right button + floating emotes near seats */}
+      <ReactionsBar canReact={mySeat !== null} />
+      <FloatingReactions visualPosForSeat={visualSeat} />
     </div>
   )
 }

@@ -419,6 +419,48 @@ export function advanceHand(snap: GameSnapshot): GameSnapshot | EngineError {
   })
 }
 
+// Project a snapshot to a spectator view. Reveals nothing private — no hands,
+// no per-seat combinations. Spectators get the public state only.
+export function projectSpectatorView(snap: GameSnapshot): PlayerView {
+  const handCounts: Record<Seat, number> = {
+    0: snap.hands[0].length,
+    1: snap.hands[1].length,
+    2: snap.hands[2].length,
+    3: snap.hands[3].length,
+  }
+  const lastTrick =
+    snap.completedTricks.length > 0
+      ? {
+          winner: snap.completedTricks[snap.completedTricks.length - 1]!.winner as Seat,
+          cards: snap.completedTricks[snap.completedTricks.length - 1]!.cards,
+        }
+      : null
+  return {
+    // `you = 0` is a placeholder; the client checks `mySeat === null` to detect spectator mode.
+    you: 0,
+    phase: snap.phase,
+    dealer: snap.dealer,
+    turn: snap.turn,
+    yourHand: [],
+    handCounts,
+    contract: snap.contract,
+    trump: snap.trump,
+    bidder: snap.bidder,
+    multiplier: snap.multiplier,
+    bidHistory: snap.bidHistory.slice(),
+    currentTrick: snap.currentTrick,
+    lastTrick,
+    announcements: snap.announcements.slice(),
+    matchScore: snap.matchScore,
+    handNo: snap.handNo,
+    settings: snap.settings,
+    hungPool: snap.hungPool,
+    lastHandResult: snap.lastHandResult,
+    handHistory: snap.handHistory.slice(),
+    yourPotentialAnnouncements: [],
+  }
+}
+
 // Project a snapshot to a per-seat view. NEVER expose other seats' hands.
 export function projectView(snap: GameSnapshot, you: Seat): PlayerView {
   const handCounts: Record<Seat, number> = {

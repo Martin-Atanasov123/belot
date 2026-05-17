@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { createRoom } from '../lib/api.js'
 import { getNickname, getPlayerIdFor, setNickname } from '../lib/identity.js'
@@ -196,7 +196,14 @@ export function Landing() {
         </section>
       </main>
 
-      <Flourish className="absolute bottom-3 left-1/2 -translate-x-1/2 w-64 text-brass/40" />
+      <Flourish className="absolute bottom-9 left-1/2 -translate-x-1/2 w-64 text-brass/40" />
+
+      <Link
+        to="/rules"
+        className="absolute bottom-3 left-1/2 -translate-x-1/2 font-display italic text-brass/70 hover:text-brass-hi text-sm z-20"
+      >
+        {t('landing.rulesLink')}
+      </Link>
     </div>
   )
 }

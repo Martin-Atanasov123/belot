@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useGame } from '../store/game.js'
 import { useT } from '../i18n/index.js'
@@ -234,6 +235,13 @@ export function Table() {
       <header className="relative z-20 border-b border-brass/20 bg-ink/40 backdrop-blur-sm">
         <div className="flex items-center justify-between px-2 sm:px-5 py-1.5 sm:py-3 gap-2">
           <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+            <Link
+              to="/"
+              className="shrink-0 font-mono text-ash hover:text-brass-hi transition text-xs sm:text-sm tracking-widest uppercase leading-none"
+              title={t('rules.backHome')}
+            >
+              ←
+            </Link>
             <Monogram size={isMobile ? 22 : 36} />
             <div className="min-w-0">
               <div className="eyebrow text-ash leading-none text-[9px] sm:text-[11px]">{t('table.room')}</div>
@@ -300,11 +308,9 @@ export function Table() {
           Desktop (sm+) uses 3-column grid with left/right badges flanking. */}
       <div className="relative z-10 flex-1 flex flex-col items-center gap-2 sm:gap-2 px-2 sm:px-4 pt-3 pb-1 sm:pb-3">
 
-        {/* Mobile: 3 opponent badges in a row at the top */}
-        <div className="sm:hidden flex w-full items-start justify-around gap-1 pt-3">
-          <SeatBadge pos="left" compact />
+        {/* Mobile: top seat alone (partner) */}
+        <div className="sm:hidden flex justify-center pt-1">
           <SeatBadge pos="top" compact />
-          <SeatBadge pos="right" compact />
         </div>
 
         {/* Desktop: top seat alone */}
@@ -312,7 +318,7 @@ export function Table() {
           <SeatBadge pos="top" />
         </div>
 
-        {/* Middle row — different grid per breakpoint */}
+        {/* Middle row — left badge | felt | right badge (both mobile and desktop) */}
         <div className="flex-1 w-full flex items-center justify-center">
 
           {/* Desktop: 3-column grid with side badges + felt */}
@@ -331,14 +337,20 @@ export function Table() {
             </div>
           </div>
 
-          {/* Mobile: felt alone, dead-centered */}
-          <div className="sm:hidden flex items-center justify-center w-full">
+          {/* Mobile: 3-column grid with compact side badges flanking the felt */}
+          <div className="sm:hidden w-full grid grid-cols-[auto_1fr_auto] items-center gap-1">
+            <div className="flex justify-start">
+              <SeatBadge pos="left" compact />
+            </div>
             <PlayZone
               trickPlays={trickPlays}
               isMobile={true}
               collectionWinnerPos={collectionWinnerPos}
               liveBid={liveBid}
             />
+            <div className="flex justify-end">
+              <SeatBadge pos="right" compact />
+            </div>
           </div>
         </div>
 
@@ -736,32 +748,34 @@ function AnnouncementsBanner() {
   const t = useT()
   const view = useGame((s) => s.view)!
   const room = useGame((s) => s.room)!
-  const [visibleFor, setVisibleFor] = useState<number | null>(null)
+  const [visible, setVisible] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Track which hand we've already shown for — avoids re-triggering on state changes.
+  const shownForHandRef = useRef<number | null>(null)
 
-  // Use handNo as a stable signature so the banner shows once per hand.
   const handSig = view.handNo
   const hasAnn = view.announcements.length > 0
 
   const dismiss = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current)
-    setVisibleFor(null)
+    setVisible(false)
   }, [])
 
   useEffect(() => {
-    if (!hasAnn) return
-    if (visibleFor === handSig) return
-    setVisibleFor(handSig)
-    timerRef.current = setTimeout(() => setVisibleFor(null), 5000)
+    // Only show once per hand; don't re-show after dismiss.
+    if (!hasAnn || shownForHandRef.current === handSig) return
+    shownForHandRef.current = handSig
+    setVisible(true)
+    timerRef.current = setTimeout(() => setVisible(false), 4000)
     return () => { if (timerRef.current) clearTimeout(timerRef.current) }
-  }, [hasAnn, handSig, visibleFor])
-
-  // Reset when the hand number bumps (so next hand's announcements show again).
-  useEffect(() => {
-    if (!hasAnn) setVisibleFor((prev) => (prev === handSig ? prev : null))
   }, [hasAnn, handSig])
 
-  const show = visibleFor === handSig && hasAnn
+  // Hide when announcements disappear (new hand started without combos).
+  useEffect(() => {
+    if (!hasAnn) setVisible(false)
+  }, [hasAnn])
+
+  const show = visible && hasAnn
   if (view.phase === 'GAME_OVER') return null
 
   // Winning team summary

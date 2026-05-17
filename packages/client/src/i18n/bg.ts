@@ -77,6 +77,7 @@ export const bg = {
   'room.joinBtn':        'Влез на масата',
   'room.spectateBtn':    'Гледай играта',
   'room.code':           'Код на стаята',
+  'room.fullSpectating': 'Стаята е пълна — гледаш играта',
   'table.spectating':    'Гледаш играта',
   'table.spectatorCount':'{n} гледат',
 

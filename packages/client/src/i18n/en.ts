@@ -78,6 +78,7 @@ export const en: Record<MessageKey, string> = {
   'room.joinBtn':        'Take a seat',
   'room.spectateBtn':    'Watch the game',
   'room.code':           'Room code',
+  'room.fullSpectating': 'Room is full — you are spectating',
   'table.spectating':    'You are spectating',
   'table.spectatorCount':'{n} watching',
 

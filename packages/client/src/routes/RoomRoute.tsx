@@ -30,12 +30,30 @@ export function RoomRoute() {
   const [mode, setMode] = useState<Mode>(urlWantsSpectate ? 'spectate' : 'play')
   const [nick, setNick] = useState<string | null>(autoEnter ? initialNick || null : null)
 
+  const [fellBackToSpectate, setFellBackToSpectate] = useState(false)
+
   useEffect(() => {
     if (!code || !chosen) return
     const n = (nick && nick.trim()) || initialNick || 'Guest'
     const args = { code, playerId: getPlayerIdFor(n), nickname: n }
-    if (mode === 'spectate') void spectate(args)
-    else void join({ ...args, isHost })
+    const enter = async () => {
+      if (mode === 'spectate') {
+        await spectate(args)
+        return
+      }
+      const r = await join({ ...args, isHost })
+      // Auto-fallback: if the room is full of humans, become a spectator
+      // instead of dead-ending on an error screen.
+      if (!r.ok && /room\s*full|full/i.test(r.error ?? '')) {
+        setFellBackToSpectate(true)
+        const sp = await spectate(args)
+        if (!sp.ok) {
+          // Spectate also failed — clear the suppression so the user sees the error.
+          setFellBackToSpectate(false)
+        }
+      }
+    }
+    void enter()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code, chosen, mode, nick, isHost])
 
@@ -62,7 +80,9 @@ export function RoomRoute() {
     )
   }
 
-  if (joinError) {
+  // While the auto-fallback is in flight, treat the transient "room full" error
+  // as a connecting state rather than a hard error screen.
+  if (joinError && !fellBackToSpectate) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-ink">
         <div className="plate px-6 py-5 text-center max-w-sm">
@@ -76,9 +96,33 @@ export function RoomRoute() {
   if (!room) return <Center>{t('room.connecting')}</Center>
   // Spectators jump straight to the table once a game is in progress; while the
   // game hasn't started they sit on the Lobby too, just without a seat.
-  if (amSpectator) return view ? <Table /> : <Lobby />
+  const fullSpectateBanner = fellBackToSpectate && amSpectator ? (
+    <FellBackBanner text={t('room.fullSpectating')} />
+  ) : null
+  if (amSpectator) return (
+    <>
+      {fullSpectateBanner}
+      {view ? <Table /> : <Lobby />}
+    </>
+  )
   if (!view) return <Lobby />
   return <Table />
+}
+
+// Small floating banner shown briefly when the user fell back to spectating
+// because the room was full of humans.
+function FellBackBanner({ text }: { text: string }) {
+  const [shown, setShown] = useState(true)
+  useEffect(() => {
+    const id = setTimeout(() => setShown(false), 4500)
+    return () => clearTimeout(id)
+  }, [])
+  if (!shown) return null
+  return (
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 plate px-4 py-2 border border-brass-hi/50 font-display italic text-cream/90 text-sm shadow-lg">
+      {text}
+    </div>
+  )
 }
 
 function Center({ children }: { children: React.ReactNode }) {

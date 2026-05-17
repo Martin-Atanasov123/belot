@@ -97,9 +97,16 @@ export function Lobby() {
 
           <div className="flex items-center justify-between mb-5">
             <div className="eyebrow text-brass">{t('lobby.atTable')}</div>
-            <div className="font-display italic text-cream/70">
-              <span className="text-cream">{filled}</span>
-              <span className="text-ash"> {t('lobby.ofTaken')}</span>
+            <div className="flex items-center gap-3 font-display italic text-cream/70">
+              <span>
+                <span className="text-cream">{filled}</span>
+                <span className="text-ash"> {t('lobby.ofTaken')}</span>
+              </span>
+              {room.spectatorCount > 0 && (
+                <span className="text-brass-hi text-xs sm:text-sm">
+                  · {t('table.spectatorCount', { n: room.spectatorCount })}
+                </span>
+              )}
             </div>
           </div>
 

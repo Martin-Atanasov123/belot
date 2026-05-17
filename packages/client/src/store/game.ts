@@ -27,6 +27,7 @@ type State = {
   hostId: string | null
   reactions: ReactionEvent[] // queue; entries auto-dropped after ~2s by the UI
   connect: () => Socket
+  clearJoinError: () => void
   join: (args: { code: string; playerId: string; nickname: string; isHost: boolean }) => Promise<{ ok: boolean; error?: string }>
   spectate: (args: { code: string; playerId: string; nickname: string }) => Promise<{ ok: boolean; error?: string }>
   start: () => Promise<{ ok: boolean; error?: string }>
@@ -67,6 +68,8 @@ export const useGame = create<State>((set, get) => ({
     set({ socket: sock })
     return sock
   },
+
+  clearJoinError: () => set({ joinError: null }),
 
   join: ({ code, playerId, nickname, isHost }) =>
     new Promise((resolve) => {

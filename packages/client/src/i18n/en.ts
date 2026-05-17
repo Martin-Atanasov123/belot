@@ -6,6 +6,17 @@ export const en: Record<MessageKey, string> = {
   'common.establ':       'Established · Anno 2026',
   'common.error':        'Error',
   'common.bot':          'BOT',
+
+  'error.title':         'Something went sideways',
+  'error.subtitle':      'The cards fell off the table. Try again or head back to the salon.',
+  'error.notFoundTitle': 'No such room',
+  'error.notFoundBody':  'It expired, the host closed it, or the link is wrong.',
+  'error.connection':    'Lost connection to the server. Check your internet.',
+  'error.404Title':      'Page not found',
+  'error.404Body':       'The link points to a place that doesn\'t exist in the salon.',
+  'error.tryAgain':      'Try again',
+  'error.goHome':        'Back to the salon',
+  'error.code':          'Code',
   'common.online':       'ONLINE',
   'common.offline':      'OFFLINE',
 

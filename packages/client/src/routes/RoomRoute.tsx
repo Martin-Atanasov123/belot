@@ -6,6 +6,7 @@ import { useT } from '../i18n/index.js'
 import { Lobby } from '../components/Lobby.js'
 import { Table } from '../components/Table.js'
 import { JoinForm } from '../components/JoinForm.js'
+import { ErrorScreen } from '../components/ErrorScreen.js'
 
 type Mode = 'play' | 'spectate'
 
@@ -17,6 +18,7 @@ export function RoomRoute() {
   const urlWantsSpectate = search.get('spectate') === '1'
   const join = useGame((s) => s.join)
   const spectate = useGame((s) => s.spectate)
+  const clearJoinError = useGame((s) => s.clearJoinError)
   const room = useGame((s) => s.room)
   const view = useGame((s) => s.view)
   const amSpectator = useGame((s) => s.amSpectator)
@@ -31,6 +33,8 @@ export function RoomRoute() {
   const [nick, setNick] = useState<string | null>(autoEnter ? initialNick || null : null)
 
   const [fellBackToSpectate, setFellBackToSpectate] = useState(false)
+  // Bumped by the "Try again" button on the error screen to re-fire the effect.
+  const [retryNonce, setRetryNonce] = useState(0)
 
   useEffect(() => {
     if (!code || !chosen) return
@@ -55,7 +59,7 @@ export function RoomRoute() {
     }
     void enter()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [code, chosen, mode, nick, isHost])
+  }, [code, chosen, mode, nick, isHost, retryNonce])
 
   if (!code) return null
 
@@ -84,12 +88,13 @@ export function RoomRoute() {
   // as a connecting state rather than a hard error screen.
   if (joinError && !fellBackToSpectate) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-ink">
-        <div className="plate px-6 py-5 text-center max-w-sm">
-          <div className="eyebrow text-ember-hi">{t('common.error')}</div>
-          <div className="font-display italic text-cream/80 mt-2">{joinError}</div>
-        </div>
-      </div>
+      <ErrorScreen
+        errorCode={joinError}
+        onRetry={() => {
+          clearJoinError()
+          setRetryNonce((n) => n + 1)
+        }}
+      />
     )
   }
 

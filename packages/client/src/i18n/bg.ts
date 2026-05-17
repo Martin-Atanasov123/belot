@@ -5,6 +5,17 @@ export const bg = {
   'common.establ':       'Основан · Anno 2026',
   'common.error':        'Грешка',
   'common.bot':          'БОТ',
+
+  'error.title':         'Нещо се обърка',
+  'error.subtitle':      'Картите паднаха не на място. Опитай отново или се върни в салона.',
+  'error.notFoundTitle': 'Тази стая я няма',
+  'error.notFoundBody':  'Стаята е изтекла, домакинът я е затворил, или линкът е сбъркан.',
+  'error.connection':    'Връзката със сървъра прекъсна. Провери интернета си.',
+  'error.404Title':      'Тази страница я няма',
+  'error.404Body':       'Линкът сочи към място, което не съществува в салона.',
+  'error.tryAgain':      'Опитай отново',
+  'error.goHome':        'Обратно в салона',
+  'error.code':          'Код',
   'common.online':       'ОНЛАЙН',
   'common.offline':      'ОФЛАЙН',
 

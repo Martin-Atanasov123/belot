@@ -59,7 +59,7 @@ export function Landing() {
         <CornerOrnament className="absolute top-4 left-4 w-9 h-9 sm:w-12 sm:h-12 text-brass/40" />
         <CornerOrnament className="absolute top-4 right-4 w-9 h-9 sm:w-12 sm:h-12 text-brass/40" style={{ transform: 'scaleX(-1)' } as React.CSSProperties} />
 
-        <div className="flex flex-col justify-between p-4 sm:p-8 lg:p-16 min-w-0">
+        <div className="relative z-[2] flex flex-col justify-between p-4 sm:p-8 lg:p-16 min-w-0">
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -189,6 +189,9 @@ export function Landing() {
             )}
           </motion.div>
         </div>
+
+        {/* Fanned cards — decorative, centered in the hero */}
+        <FannedCards />
 
         {/* Scroll hint */}
         <motion.a
@@ -467,13 +470,13 @@ function FannedCards() {
     { rank: '9', suit: '♥', red: true,  rot: -10, x: -55,  y: -8 },
     { rank: 'A', suit: '♦', red: true,  rot:   2, x:   18, y: -16 },
     { rank: '10', suit: '♣', red: false, rot:  14, x:   90, y: -2 },
-    { rank: 'K', suit: '♥', red: true, rot:  26, x:  160, y: 28 },
+    { rank: 'K', suit: '♥', red: true,  rot:  26, x:  160, y: 28 },
   ]
   return (
     <div
       aria-hidden
-      className="hidden lg:block absolute left-1/2 top-[42%] -translate-x-1/2 -translate-y-1/2 opacity-90 pointer-events-none"
-      style={{ filter: 'drop-shadow(0 30px 40px rgba(0,0,0,.55))' }}
+      className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[1] pointer-events-none opacity-85"
+      style={{ filter: 'drop-shadow(0 30px 40px rgba(0,0,0,.65))' }}
     >
       {cards.map((c, i) => (
         <motion.div

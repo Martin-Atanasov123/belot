@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useGame } from '../store/game.js'
 import { useT } from '../i18n/index.js'
@@ -737,17 +737,23 @@ function AnnouncementsBanner() {
   const view = useGame((s) => s.view)!
   const room = useGame((s) => s.room)!
   const [visibleFor, setVisibleFor] = useState<number | null>(null)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Use handNo as a stable signature so the banner shows once per hand.
   const handSig = view.handNo
   const hasAnn = view.announcements.length > 0
 
+  const dismiss = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current)
+    setVisibleFor(null)
+  }, [])
+
   useEffect(() => {
     if (!hasAnn) return
     if (visibleFor === handSig) return
     setVisibleFor(handSig)
-    const id = setTimeout(() => setVisibleFor(null), 4200)
-    return () => clearTimeout(id)
+    timerRef.current = setTimeout(() => setVisibleFor(null), 5000)
+    return () => { if (timerRef.current) clearTimeout(timerRef.current) }
   }, [hasAnn, handSig, visibleFor])
 
   // Reset when the hand number bumps (so next hand's announcements show again).
@@ -771,12 +777,21 @@ function AnnouncementsBanner() {
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -20, transition: { duration: 0.5 } }}
           transition={{ type: 'spring', stiffness: 240, damping: 24 }}
-          className="absolute z-30 left-3 sm:left-6 bottom-28 sm:bottom-44 pointer-events-none"
+          className="absolute z-30 left-3 sm:left-6 bottom-28 sm:bottom-44"
         >
           <div className="plate px-3 py-2 max-w-[78vw] sm:max-w-[260px] border border-brass-hi/40">
             <div className="flex items-center justify-between gap-2 mb-1">
               <span className="eyebrow text-brass-hi text-[9px]">{t('table.combinations')}</span>
-              {teamLabel && <span className="font-display italic text-cream/70 text-[10px]">{teamLabel}</span>}
+              <div className="flex items-center gap-1.5">
+                {teamLabel && <span className="font-display italic text-cream/70 text-[10px]">{teamLabel}</span>}
+                <button
+                  onClick={dismiss}
+                  className="text-ash/60 hover:text-cream transition leading-none text-[14px] -mr-0.5"
+                  aria-label="Затвори"
+                >
+                  ×
+                </button>
+              </div>
             </div>
             <div className="flex flex-col gap-1">
               {view.announcements.slice(0, 3).map((a, i) => (

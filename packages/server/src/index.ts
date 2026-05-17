@@ -38,7 +38,13 @@ import {
 
 const PORT = Number(process.env.PORT ?? 3001)
 const HOST = process.env.HOST ?? '0.0.0.0'
-const CORS_ORIGIN = (process.env.CORS_ORIGIN ?? '*').split(',').map((s) => s.trim())
+const CORS_ORIGIN = [
+  ...(process.env.CORS_ORIGIN ?? '*').split(',').map((s) => s.trim()),
+  // Always allow local dev origins so the production server can be tested from localhost.
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:3000',
+]
 
 const roomCode = customAlphabet('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', 6)
 

@@ -2,7 +2,7 @@
 // We cache the app shell (index.html + built assets) and let Socket.IO / API
 // traffic pass straight through to the network.
 
-const CACHE = 'belot-shell-v1'
+const CACHE = 'belot-shell-v3'
 const SHELL = ['/', '/index.html', '/icon.svg', '/manifest.webmanifest']
 
 self.addEventListener('install', (event) => {

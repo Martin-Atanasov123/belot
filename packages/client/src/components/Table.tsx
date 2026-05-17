@@ -756,24 +756,37 @@ function AnnouncementsBanner() {
   const handSig = view.handNo
   const hasAnn = view.announcements.length > 0
 
-  const dismiss = useCallback(() => {
-    if (timerRef.current) clearTimeout(timerRef.current)
-    setVisible(false)
+  const clearTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current)
+      timerRef.current = null
+    }
   }, [])
 
-  useEffect(() => {
-    // Only show once per hand; don't re-show after dismiss.
-    if (!hasAnn || shownForHandRef.current === handSig) return
-    shownForHandRef.current = handSig
-    setVisible(true)
-    timerRef.current = setTimeout(() => setVisible(false), 4000)
-    return () => { if (timerRef.current) clearTimeout(timerRef.current) }
-  }, [hasAnn, handSig])
+  const dismiss = useCallback(() => {
+    clearTimer()
+    setVisible(false)
+  }, [clearTimer])
 
-  // Hide when announcements disappear (new hand started without combos).
+  // Trigger the banner once per hand. Note: cleanup function is intentionally
+  // omitted so React 18 StrictMode double-invoke doesn't kill the timer.
   useEffect(() => {
-    if (!hasAnn) setVisible(false)
-  }, [hasAnn])
+    if (!hasAnn) {
+      setVisible(false)
+      return
+    }
+    if (shownForHandRef.current === handSig) return
+    shownForHandRef.current = handSig
+    clearTimer()
+    setVisible(true)
+    timerRef.current = setTimeout(() => {
+      setVisible(false)
+      timerRef.current = null
+    }, 4000)
+  }, [hasAnn, handSig, clearTimer])
+
+  // Cleanup only on unmount.
+  useEffect(() => () => clearTimer(), [clearTimer])
 
   const show = visible && hasAnn
   if (view.phase === 'GAME_OVER') return null
@@ -796,11 +809,13 @@ function AnnouncementsBanner() {
           <div className="plate px-3 py-2 max-w-[78vw] sm:max-w-[260px] border border-brass-hi/40">
             <div className="flex items-center justify-between gap-2 mb-1">
               <span className="eyebrow text-brass-hi text-[9px]">{t('table.combinations')}</span>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2">
                 {teamLabel && <span className="font-display italic text-cream/70 text-[10px]">{teamLabel}</span>}
                 <button
+                  type="button"
                   onClick={dismiss}
-                  className="text-ash/60 hover:text-cream transition leading-none text-[14px] -mr-0.5"
+                  onTouchEnd={(e) => { e.preventDefault(); dismiss() }}
+                  className="text-ash hover:text-cream active:text-brass-hi transition leading-none text-[18px] font-bold w-7 h-7 -my-1 -mr-1 flex items-center justify-center rounded-full hover:bg-ash/10 touch-manipulation"
                   aria-label="Затвори"
                 >
                   ×

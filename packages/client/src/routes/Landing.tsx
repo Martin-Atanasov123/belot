@@ -38,9 +38,9 @@ export function Landing() {
   }
 
   return (
-    <div className="min-h-screen bg-ink relative">
-      {/* Atmospheric background */}
-      <div className="pointer-events-none fixed inset-0">
+    <div className="min-h-screen bg-ink relative overflow-x-hidden">
+      {/* Atmospheric background — fixed and clipped so its glow doesn't push the page wide */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="absolute inset-0 bg-felt-noise opacity-90" />
         <div
           className="absolute -top-40 -right-40 w-[640px] h-[640px] rounded-full opacity-20 blur-3xl"
@@ -55,11 +55,11 @@ export function Landing() {
       <LanguageToggle className="fixed top-5 right-5 z-30" />
 
       {/* ─── HERO ─── */}
-      <section className="relative min-h-[100dvh] grid lg:grid-cols-[1.05fr_0.95fr]">
-        <CornerOrnament className="absolute top-6 left-6 w-12 h-12 text-brass/40" />
-        <CornerOrnament className="absolute top-6 right-6 w-12 h-12 text-brass/40" style={{ transform: 'scaleX(-1)' } as React.CSSProperties} />
+      <section className="relative min-h-[100dvh] grid lg:grid-cols-[1.05fr_0.95fr] overflow-hidden">
+        <CornerOrnament className="absolute top-4 left-4 w-9 h-9 sm:w-12 sm:h-12 text-brass/40" />
+        <CornerOrnament className="absolute top-4 right-4 w-9 h-9 sm:w-12 sm:h-12 text-brass/40" style={{ transform: 'scaleX(-1)' } as React.CSSProperties} />
 
-        <div className="flex flex-col justify-between p-6 sm:p-10 lg:p-16">
+        <div className="flex flex-col justify-between p-4 sm:p-8 lg:p-16 min-w-0">
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -84,8 +84,8 @@ export function Landing() {
               initial={{ opacity: 0, y: 12, letterSpacing: '0.18em' }}
               animate={{ opacity: 1, y: 0, letterSpacing: '0em' }}
               transition={{ duration: 1.0, delay: 0.2, ease: [0.22, 0.61, 0.36, 1] }}
-              className="font-display text-cream leading-[0.95] font-bold"
-              style={{ fontSize: 'clamp(64px, 10vw, 144px)' }}
+              className="font-display text-cream leading-[0.95] font-bold break-words"
+              style={{ fontSize: 'clamp(56px, 9vw, 144px)' }}
             >
               Белот
             </motion.h1>
@@ -117,10 +117,7 @@ export function Landing() {
             </motion.div>
           </motion.div>
 
-          <FannedCards />
           <motion.div
-          
-
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 1.2, duration: 0.7 }}
@@ -137,13 +134,12 @@ export function Landing() {
         </div>
 
         {/* Right column — form (the primary CTA) */}
-        <div className="relative flex items-center justify-center p-6 sm:p-10 lg:p-16">
-
+        <div className="relative flex items-center justify-center p-4 sm:p-8 lg:p-16 min-w-0">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4, duration: 0.7, ease: 'easeOut' }}
-            className="relative z-10 w-full max-w-md plate p-7 md:p-10"
+            className="relative z-10 w-full max-w-md plate p-5 sm:p-7 md:p-10"
           >
             <div className="text-center mb-6">
               <div className="eyebrow text-brass">{t('landing.formTitle')}</div>

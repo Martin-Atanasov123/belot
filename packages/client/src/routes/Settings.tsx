@@ -4,6 +4,8 @@ import { PublicNav } from '../components/PublicNav.js'
 import { Flourish, Monogram } from '../components/Ornaments.js'
 import { useI18n, useT } from '../i18n/index.js'
 import { getNickname, setNickname } from '../lib/identity.js'
+import { useAuth } from '../lib/auth.js'
+import { supabase } from '../lib/supabase.js'
 import type { MessageKey } from '../i18n/bg.js'
 
 // Settings page — per design spec §16 НАСТРОЙКИ.
@@ -117,16 +119,44 @@ export function Settings() {
 // ── Profile tab — nickname + avatar placeholder ─────────────────────
 function ProfileTab() {
   const t = useT()
-  const [nick, setNick] = useState(getNickname())
+  const profile = useAuth((s) => s.profile)
+  const userId = useAuth((s) => s.user?.id ?? null)
+  const refreshProfile = useAuth((s) => s.refreshProfile)
+  // Prefer DB username when signed in; fall back to localStorage.
+  const [nick, setNick] = useState(profile?.username ?? getNickname())
   const [saved, setSaved] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
   const initial = (nick.trim()[0] ?? '?').toUpperCase()
 
-  const onSave = () => {
-    if (nick.trim()) {
-      setNickname(nick.trim())
-      setSaved(true)
-      setTimeout(() => setSaved(false), 1200)
+  // Sync input when the auth profile loads (e.g. on first render after OAuth).
+  useEffect(() => {
+    if (profile?.username) setNick(profile.username)
+  }, [profile?.username])
+
+  const onSave = async () => {
+    const trimmed = nick.trim()
+    if (!trimmed) return
+    setErr(null)
+    if (!/^[A-Za-z0-9_.-]{3,20}$/.test(trimmed)) {
+      setErr(t('auth.usernameHint'))
+      return
     }
+    // Always persist to localStorage for guest/offline nickname.
+    setNickname(trimmed)
+    // Also update public.profiles when signed in.
+    if (userId) {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ username: trimmed, updated_at: new Date().toISOString() })
+        .eq('id', userId)
+      if (error) {
+        setErr(error.message)
+        return
+      }
+      await refreshProfile()
+    }
+    setSaved(true)
+    setTimeout(() => setSaved(false), 1200)
   }
 
   return (
@@ -156,10 +186,18 @@ function ProfileTab() {
       </label>
 
       <div className="flex items-center gap-3">
-        <button onClick={onSave} className="btn-brass">
+        <button onClick={() => void onSave()} className="btn-brass">
           {saved ? t('lobby.copied') : t('common.save')}
         </button>
       </div>
+      {err && (
+        <div className="text-ember-hi font-display italic text-sm">{err}</div>
+      )}
+      {userId && (
+        <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-brass/60">
+          {t('settings.syncedToAccount')}
+        </div>
+      )}
     </div>
   )
 }

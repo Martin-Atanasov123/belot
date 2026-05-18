@@ -1,7 +1,10 @@
+import { useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Flourish, Monogram } from './Ornaments.js'
 import { useGame } from '../store/game.js'
+import { useAuth } from '../lib/auth.js'
+import { persistMatch } from '../lib/matchPersist.js'
 import { useT } from '../i18n/index.js'
 
 // Victory / defeat cinematic — per design spec §12.
@@ -14,6 +17,15 @@ export function VictoryOverlay() {
   const view = useGame((s) => s.view)!
   const room = useGame((s) => s.room)!
   const mySeat = useGame((s) => s.mySeat)
+  const userId = useAuth((s) => s.user?.id ?? null)
+  const persistedRef = useRef(false)
+
+  // Fire-and-forget: save match to DB once per game-over, only when authenticated.
+  useEffect(() => {
+    if (persistedRef.current) return
+    persistedRef.current = true
+    void persistMatch(room, view, mySeat, userId)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const nsWon = view.matchScore.NS > view.matchScore.EW
   const myTeam: 'NS' | 'EW' | null =

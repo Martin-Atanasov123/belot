@@ -299,6 +299,7 @@ export const en: Record<MessageKey, string> = {
   'settings.dataExport': 'Export your data',
   'settings.privacyPolicy':'Privacy policy',
   'settings.privacyHint':'Without signing up we keep nothing outside your browser.',
+  'settings.syncedToAccount':'Synced to account',
 
   // Tournaments
   'tour.title':          'Tournaments',

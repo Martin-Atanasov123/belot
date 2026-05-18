@@ -5,5 +5,9 @@
       "PowerShell(pnpm --version)",
       "Bash(npx tsc *)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "supabase"
+  ],
+  "enableAllProjectMcpServers": true
 }

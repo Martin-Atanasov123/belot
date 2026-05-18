@@ -298,6 +298,7 @@ export const bg = {
   'settings.dataExport': 'Изтегли данните си',
   'settings.privacyPolicy':'Политика за поверителност',
   'settings.privacyHint':'Без регистрация не съхраняваме нищо извън браузъра ти.',
+  'settings.syncedToAccount':'Синхронизирано с акаунта',
 
   // Tournaments (spec §14–15)
   'tour.title':          'Турнири',

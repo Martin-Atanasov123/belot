@@ -174,6 +174,7 @@ export const bg = {
   'nav.profile':         'Профил',
   'nav.settings':        'Настройки',
   'nav.logout':          'Изход',
+  'nav.dashboard':       'Табло',
 
   // Authentication (spec §5–7)
   'auth.loginTitle':     'Вход в салона',
@@ -198,6 +199,21 @@ export const bg = {
   'auth.checking':       'Проверка…',
   'auth.available':      'Свободен',
   'auth.taken':          'Зает',
+  'auth.signingIn':      'Влизам…',
+  'auth.signingUp':      'Регистрирам…',
+  'auth.signupSuccess':  'Провери имейла си за потвърждение.',
+  'auth.forgotSent':     'Изпратихме линк на имейла ти.',
+  'auth.resetTitle':     'Нова парола',
+  'auth.resetBody':      'Въведи новата си парола.',
+  'auth.resetSubmit':    'Запази паролата',
+  'auth.resetSuccess':   'Паролата е сменена. Влез отново.',
+  'auth.invalidLogin':   'Грешен имейл или парола.',
+  'auth.userExists':     'Този имейл вече е регистриран.',
+  'auth.weakPassword':   'Паролата е твърде слаба.',
+  'auth.networkErr':     'Няма връзка със сървъра. Опитай пак.',
+  'auth.notConfigured':  'Авторизацията не е настроена. Играй като гост.',
+  'auth.welcome':        'Здравей',
+  'auth.logout':         'Изход',
 
   // Leaderboard (spec §4 КЛАСАЦИЯ)
   'lb.title':            'Класация',

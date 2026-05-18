@@ -175,6 +175,7 @@ export const en: Record<MessageKey, string> = {
   'nav.profile':         'Profile',
   'nav.settings':        'Settings',
   'nav.logout':          'Log out',
+  'nav.dashboard':       'Hub',
 
   // Authentication
   'auth.loginTitle':     'Enter the salon',
@@ -199,6 +200,21 @@ export const en: Record<MessageKey, string> = {
   'auth.checking':       'Checking…',
   'auth.available':      'Available',
   'auth.taken':          'Taken',
+  'auth.signingIn':      'Signing in…',
+  'auth.signingUp':      'Creating account…',
+  'auth.signupSuccess':  'Check your email to confirm your account.',
+  'auth.forgotSent':     'We sent a reset link to your email.',
+  'auth.resetTitle':     'New password',
+  'auth.resetBody':      'Set your new password.',
+  'auth.resetSubmit':    'Save password',
+  'auth.resetSuccess':   'Password updated. Please log in.',
+  'auth.invalidLogin':   'Wrong email or password.',
+  'auth.userExists':     'This email is already registered.',
+  'auth.weakPassword':   'Password is too weak.',
+  'auth.networkErr':     'No connection. Please try again.',
+  'auth.notConfigured':  'Authentication not configured. Play as guest.',
+  'auth.welcome':        'Hello',
+  'auth.logout':         'Sign out',
 
   // Leaderboard
   'lb.title':            'Leaderboard',

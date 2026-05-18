@@ -5,6 +5,7 @@ import { PublicNav } from '../components/PublicNav.js'
 import { CornerOrnament, Flourish, Monogram } from '../components/Ornaments.js'
 import { createRoom } from '../lib/api.js'
 import { getNickname, getPlayerIdFor } from '../lib/identity.js'
+import { useAuth } from '../lib/auth.js'
 import { useT } from '../i18n/index.js'
 
 // Lobby hub (Табло) — per design spec §8. Main authenticated hub.
@@ -16,14 +17,20 @@ import { useT } from '../i18n/index.js'
 export function Tablo() {
   const t = useT()
   const nav = useNavigate()
-  const nick = getNickname() || 'Гост'
+  const profile = useAuth((s) => s.profile)
+  const user = useAuth((s) => s.user)
+  // Signed-in users keep their profile username; guests fall back to localStorage.
+  const nick = (profile?.username ?? user?.email?.split('@')[0] ?? getNickname()) || 'Гост'
   const [busy, setBusy] = useState(false)
   const [joinCode, setJoinCode] = useState('')
 
   const onCreate = async () => {
     setBusy(true)
     try {
-      const { code } = await createRoom(getPlayerIdFor(nick))
+      // Authed users get a stable playerId derived from their auth uid;
+      // guests get the localStorage-cached uuid keyed by nickname.
+      const playerId = user?.id ?? getPlayerIdFor(nick)
+      const { code } = await createRoom(playerId)
       nav(`/r/${code}?host=1`)
     } finally {
       setBusy(false)

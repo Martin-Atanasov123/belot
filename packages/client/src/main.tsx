@@ -6,7 +6,8 @@ import { RoomRoute } from './routes/RoomRoute.js'
 import { Rules } from './routes/Rules.js'
 import { Leaderboard } from './routes/Leaderboard.js'
 import { Premium } from './routes/Premium.js'
-import { Login, Signup, ForgotPassword } from './routes/AuthPages.js'
+import { Login, Signup, ForgotPassword, ResetPassword } from './routes/AuthPages.js'
+import { bootstrapAuth } from './lib/auth.js'
 import { Tablo } from './routes/Tablo.js'
 import { Settings } from './routes/Settings.js'
 import { Profile } from './routes/Profile.js'
@@ -42,6 +43,10 @@ class AppErrorBoundary extends React.Component<
 // Initialise <html lang="…"> on first paint so screen readers pick the right voice.
 document.documentElement.lang = useI18n.getState().locale
 
+// Boot the auth store — pulls the existing Supabase session (if any) and
+// subscribes to future sign-in / sign-out events.
+bootstrapAuth()
+
 // Register the PWA service worker (production only — dev uses Vite's HMR shell).
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
@@ -66,6 +71,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/vhod" element={<Login />} />
           <Route path="/registracia" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           {/* Hub / profile / settings / tournaments — all visual-complete; DB-wired in later phases. */}
           <Route path="/tablo" element={<Tablo />} />
           <Route path="/profil/:username" element={<Profile />} />

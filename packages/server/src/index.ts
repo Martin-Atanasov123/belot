@@ -1,8 +1,10 @@
+import 'dotenv/config'
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import { Server as SocketIOServer } from 'socket.io'
 import { customAlphabet } from 'nanoid'
 import { z } from 'zod'
+import { verifyAccessToken, type AuthedUser } from './supabase.js'
 import {
   ActionSchema,
   type PlayerView,
@@ -89,6 +91,21 @@ const io = new SocketIOServer(server, {
     origin: CORS_ORIGIN.includes('*') ? true : CORS_ORIGIN,
     credentials: true,
   },
+})
+
+// Optional auth middleware. The client passes the Supabase JWT in the
+// `auth.token` field of the Socket.IO handshake. If it verifies, we attach
+// the authed user to `socket.data.user`. If it doesn't, we still let the
+// connection through — guests are first-class citizens.
+io.use(async (socket, next) => {
+  const raw = (socket.handshake.auth as { token?: string } | undefined)?.token
+  if (typeof raw === 'string' && raw.length > 0) {
+    const user = await verifyAccessToken(raw)
+    ;(socket.data as { user?: AuthedUser | null }).user = user
+  } else {
+    ;(socket.data as { user?: AuthedUser | null }).user = null
+  }
+  next()
 })
 
 const TURN_TIMER_MS = 30_000

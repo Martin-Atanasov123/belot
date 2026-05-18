@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Monogram } from './Ornaments.js'
 import { LanguageToggle } from './LanguageToggle.js'
 import { useT } from '../i18n/index.js'
+import { useAuth } from '../lib/auth.js'
 
 // Public Navigation — per design spec §Navigation Structure (Public Nav).
 // Transparent over the hero on the landing page; solid `#0e251c` with backdrop-blur
@@ -59,18 +60,7 @@ export function PublicNav({ overHero = false }: { overHero?: boolean }) {
           {/* Right side: auth + lang */}
           <div className="flex items-center gap-2 sm:gap-3">
             <LanguageToggle />
-            <Link
-              to="/vhod"
-              className="hidden sm:inline-flex font-mono text-xs tracking-[0.18em] uppercase text-ash hover:text-brass-hi transition px-2 py-1.5"
-            >
-              {t('nav.login')}
-            </Link>
-            <Link
-              to="/registracia"
-              className="hidden sm:inline-flex btn-brass text-[10px] !min-h-0 !py-2 !px-4"
-            >
-              {t('nav.signup')}
-            </Link>
+            <AuthSlot />
 
             {/* Mobile hamburger */}
             <button
@@ -114,13 +104,7 @@ export function PublicNav({ overHero = false }: { overHero?: boolean }) {
               <MobileLink to="/klasacia" label={t('nav.leaderboard')} />
               <MobileLink to="/premium" label={t('nav.premium')} />
               <div className="w-24 h-px bg-brass/30 my-4" />
-              <MobileLink to="/vhod" label={t('nav.login')} muted />
-              <Link
-                to="/registracia"
-                className="btn-brass mt-2"
-              >
-                {t('nav.signup')}
-              </Link>
+              <MobileAuth />
             </nav>
             <div className="pb-6 text-center font-mono text-[10px] tracking-widest text-ash/60 uppercase">
               {t('common.sofia')}
@@ -174,6 +158,145 @@ function MobileLink({ to, label, muted }: { to: string; label: string; muted?: b
     >
       {label}
     </NavLink>
+  )
+}
+
+// Desktop auth slot — either Login/Signup links (signed out) or
+// username + dropdown to logout (signed in).
+function AuthSlot() {
+  const t = useT()
+  const status = useAuth((s) => s.status)
+  const session = useAuth((s) => s.session)
+  const profile = useAuth((s) => s.profile)
+  const user = useAuth((s) => s.user)
+  const signOut = useAuth((s) => s.signOut)
+  const [open, setOpen] = useState(false)
+
+  if (status === 'loading') {
+    return <div className="hidden sm:block w-24 h-8" aria-hidden />
+  }
+
+  if (!session) {
+    return (
+      <>
+        <Link
+          to="/vhod"
+          className="hidden sm:inline-flex font-mono text-xs tracking-[0.18em] uppercase text-ash hover:text-brass-hi transition px-2 py-1.5"
+        >
+          {t('nav.login')}
+        </Link>
+        <Link
+          to="/registracia"
+          className="hidden sm:inline-flex btn-brass text-[10px] !min-h-0 !py-2 !px-4"
+        >
+          {t('nav.signup')}
+        </Link>
+      </>
+    )
+  }
+
+  const name = profile?.username ?? user?.email?.split('@')[0] ?? '—'
+  const initial = name.trim()[0]?.toUpperCase() ?? '?'
+
+  return (
+    <div className="relative hidden sm:block">
+      <button
+        type="button"
+        onClick={() => setOpen((s) => !s)}
+        aria-expanded={open}
+        className="flex items-center gap-2 px-2 py-1.5 rounded font-mono text-xs tracking-[0.18em] uppercase text-cream/80 hover:text-brass-hi transition"
+      >
+        <span
+          aria-hidden
+          className="w-7 h-7 rounded-full border border-brass/40 bg-racing/60 flex items-center justify-center font-display italic text-cream"
+        >
+          {initial}
+        </span>
+        <span className="max-w-[100px] truncate">{name}</span>
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.15 }}
+            className="absolute right-0 mt-2 w-44 plate p-2 z-50"
+          >
+            <Link
+              to="/tablo"
+              onClick={() => setOpen(false)}
+              className="block w-full text-left px-3 py-2 font-mono text-[11px] tracking-[0.18em] uppercase text-cream/80 hover:text-brass-hi transition"
+            >
+              {t('nav.dashboard')}
+            </Link>
+            <Link
+              to={`/profil/${encodeURIComponent(name)}`}
+              onClick={() => setOpen(false)}
+              className="block w-full text-left px-3 py-2 font-mono text-[11px] tracking-[0.18em] uppercase text-cream/80 hover:text-brass-hi transition"
+            >
+              {t('nav.profile')}
+            </Link>
+            <Link
+              to="/nastroyki"
+              onClick={() => setOpen(false)}
+              className="block w-full text-left px-3 py-2 font-mono text-[11px] tracking-[0.18em] uppercase text-cream/80 hover:text-brass-hi transition"
+            >
+              {t('nav.settings')}
+            </Link>
+            <div className="h-px bg-brass/15 my-1" />
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false)
+                void signOut()
+              }}
+              className="block w-full text-left px-3 py-2 font-mono text-[11px] tracking-[0.18em] uppercase text-ember-hi/90 hover:text-ember-hi transition"
+            >
+              {t('auth.logout')}
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+// Mobile auth chunk for the full-screen overlay menu.
+function MobileAuth() {
+  const t = useT()
+  const session = useAuth((s) => s.session)
+  const profile = useAuth((s) => s.profile)
+  const user = useAuth((s) => s.user)
+  const signOut = useAuth((s) => s.signOut)
+
+  if (!session) {
+    return (
+      <>
+        <MobileLink to="/vhod" label={t('nav.login')} muted />
+        <Link to="/registracia" className="btn-brass mt-2">
+          {t('nav.signup')}
+        </Link>
+      </>
+    )
+  }
+  const name = profile?.username ?? user?.email?.split('@')[0] ?? '—'
+  return (
+    <>
+      <div className="font-display italic text-cream text-xl">
+        {t('auth.welcome')}, {name}
+      </div>
+      <MobileLink to="/tablo" label={t('nav.dashboard')} muted />
+      <MobileLink to={`/profil/${encodeURIComponent(name)}`} label={t('nav.profile')} muted />
+      <MobileLink to="/nastroyki" label={t('nav.settings')} muted />
+      <button
+        type="button"
+        onClick={() => void signOut()}
+        className="font-display text-lg text-ember-hi/90 hover:text-ember-hi tracking-wide mt-2"
+      >
+        {t('auth.logout')}
+      </button>
+    </>
   )
 }
 

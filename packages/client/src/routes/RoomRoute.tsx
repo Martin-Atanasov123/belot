@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { useGame } from '../store/game.js'
 import { getNickname, getPlayerIdFor, setNickname } from '../lib/identity.js'
+import { useAuth } from '../lib/auth.js'
 import { useT } from '../i18n/index.js'
 import { Lobby } from '../components/Lobby.js'
 import { Table } from '../components/Table.js'
@@ -24,9 +25,14 @@ export function RoomRoute() {
   const amSpectator = useGame((s) => s.amSpectator)
   const joinError = useGame((s) => s.joinError)
 
-  const initialNick = getNickname()
-  // Host and players with a saved nickname auto-enter; everyone else picks a
-  // nickname (and play/spectate) on the JoinForm first.
+  const profile = useAuth((s) => s.profile)
+  const authUser = useAuth((s) => s.user)
+  // Signed-in users: use their profile username + stable auth uid as playerId.
+  // Guests: fall back to the localStorage-cached nickname + uuid.
+  const authedNick = profile?.username ?? authUser?.email?.split('@')[0] ?? null
+  const initialNick = authedNick ?? getNickname()
+  // Host and players with a saved nickname or auth profile auto-enter; everyone
+  // else picks a nickname (and play/spectate) on the JoinForm first.
   const autoEnter = isHost || (Boolean(initialNick) && !urlWantsSpectate)
   const [chosen, setChosen] = useState(autoEnter)
   const [mode, setMode] = useState<Mode>(urlWantsSpectate ? 'spectate' : 'play')
@@ -39,7 +45,9 @@ export function RoomRoute() {
   useEffect(() => {
     if (!code || !chosen) return
     const n = (nick && nick.trim()) || initialNick || 'Guest'
-    const args = { code, playerId: getPlayerIdFor(n), nickname: n }
+    // Authed user → stable playerId from auth uid. Guests → localStorage uuid.
+    const playerId = authUser?.id ?? getPlayerIdFor(n)
+    const args = { code, playerId, nickname: n }
     const enter = async () => {
       if (mode === 'spectate') {
         await spectate(args)

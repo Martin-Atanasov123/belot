@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { io, type Socket } from 'socket.io-client'
 import type { Action, PlayerView, Seat } from '@belot/shared'
 import { SERVER_URL } from '../lib/api.js'
+import { supabase } from '../lib/supabase.js'
 
 export type PublicSeat = { seat: Seat; nickname: string | null; connected: boolean; isBot: boolean }
 export type PublicRoomState = {
@@ -53,7 +54,17 @@ export const useGame = create<State>((set, get) => ({
   connect: () => {
     const existing = get().socket
     if (existing) return existing
-    const sock = io(SERVER_URL, { transports: ['websocket'] })
+    // If the user is signed in, the Supabase JWT is attached to the handshake
+    // (auth.token). The server verifies it in its io.use() middleware and binds
+    // the authed identity to socket.data.user. Guests connect with no token.
+    const sock = io(SERVER_URL, {
+      transports: ['websocket'],
+      auth: (cb) => {
+        void supabase.auth.getSession().then(({ data }) => {
+          cb({ token: data.session?.access_token ?? '' })
+        })
+      },
+    })
     sock.on('connect', () => set({ connected: true }))
     sock.on('disconnect', () => set({ connected: false }))
     sock.on('room:state', (state: PublicRoomState) => {

@@ -6,7 +6,23 @@
 
 :root {
   color-scheme: dark;
+  /* Tier A — atmospheric (default). Tier B sets these to 0 via .tier-b root class. */
   --grain-opacity: 0.06;
+  --atmosphere-opacity: 1;
+}
+
+/* Tier B (battlefield) — game/bidding screens. Spec §Animation Rules + §17/18:
+   "Background: flat #0e251c — no grain, no glow, no ornaments." */
+.tier-b {
+  --grain-opacity: 0;
+  --atmosphere-opacity: 0;
+}
+/* Mobile also kills atmosphere per spec §Mobile Rules (perf reasons). */
+@media (max-width: 767px) {
+  :root.tier-mobile-strip {
+    --grain-opacity: 0;
+    --atmosphere-opacity: 0;
+  }
 }
 
 html, body, #root {
@@ -18,11 +34,12 @@ html, body, #root {
 body {
   font-family: '"Plus Jakarta Sans"', system-ui, sans-serif;
   color: #f4eccb;
+  letter-spacing: 0.06em; /* spec §Typography — normal UI body */
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
-/* Film-grain overlay applied to the page for a printed-paper feel. */
+/* Film-grain overlay — Tier A only. Kills itself when --grain-opacity → 0. */
 body::after {
   content: '';
   position: fixed;
@@ -32,6 +49,22 @@ body::after {
   opacity: var(--grain-opacity);
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
   mix-blend-mode: overlay;
+  transition: opacity 200ms ease;
+}
+
+/* Tier B utility — flat racing-green background, no decoration. Used by the
+   game/bidding screen wrapper to enforce the battlefield aesthetic. */
+.battlefield {
+  background: #0e251c;
+}
+
+/* Static glow ring for the active player in Tier B — per spec §17/18:
+   "no brass pulse — static glow only". Replaces the animated brassPulse. */
+.seat-active-static {
+  box-shadow:
+    inset 0 0 0 1px rgba(230, 193, 120, 0.85),
+    0 0 0 4px rgba(28, 82, 64, 0.6),
+    0 0 18px rgba(28, 82, 64, 0.4);
 }
 
 /* ─────── Card face ─────── */
@@ -228,14 +261,18 @@ body::after {
 .rule-brass::after  { left: calc(50% + 26px); }
 
 /* ─────── Text helpers ─────── */
+/* Per spec §Typography — eyebrow uses 0.24em letter-spacing.
+   Color is brass-dim (inactive brass) so eyebrow labels don't compete
+   visually with real interactable brass elements. */
 .eyebrow {
   font-family: '"Plus Jakarta Sans"', system-ui, sans-serif;
   font-size: 0.68rem;
   font-weight: 600;
-  letter-spacing: 0.32em;
+  letter-spacing: 0.24em;
   text-transform: uppercase;
-  color: #c9a25a;
+  color: #8a6a30; /* brass-dim */
 }
+.eyebrow-active { color: #c9a25a; } /* brass — when label is on/highlighted */
 .serif-italic { font-family: '"Playfair Display"', Georgia, serif; font-style: italic; }
 
 /* Inputs */
@@ -257,15 +294,18 @@ body::after {
 }
 .input-salon::placeholder { color: rgba(244,236,203,.35); font-style: italic; }
 
-/* Buttons */
+/* Buttons — per spec §Mobile Rules: min 44px tap target on mobile.
+   Per spec §Component States: hover lifts, active scales 0.97 for 80ms,
+   focused gets 2px brass outline (keyboard nav). */
 .btn-brass {
   position: relative;
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 12px 22px;
+  min-height: 44px;
+  padding: 11px 22px;
   font-family: '"Plus Jakarta Sans"', system-ui, sans-serif;
   font-size: 0.78rem;
   font-weight: 600;
-  letter-spacing: 0.28em;
+  letter-spacing: 0.24em;
   text-transform: uppercase;
   color: #1a1208;
   background: linear-gradient(180deg, #e6c178 0%, #c9a25a 60%, #a98640 100%);
@@ -276,26 +316,32 @@ body::after {
   transition: transform .15s ease, box-shadow .2s ease, filter .15s ease;
 }
 .btn-brass:hover:not(:disabled) { transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 18px 28px -10px rgba(201,162,90,.55); }
-.btn-brass:active:not(:disabled) { transform: translateY(0); filter: brightness(.95); }
-.btn-brass:disabled { opacity: .4; cursor: not-allowed; }
+.btn-brass:active:not(:disabled) { transform: scale(0.97); transition-duration: 80ms; filter: brightness(.95); }
+.btn-brass:focus-visible { outline: 2px solid #c9a25a; outline-offset: 2px; }
+.btn-brass:disabled { opacity: .35; cursor: not-allowed; }
 
 .btn-ghost {
   display: inline-flex; align-items: center; justify-content: center;
+  min-height: 44px;
   padding: 11px 18px;
   font-family: '"Plus Jakarta Sans"', system-ui, sans-serif;
   font-size: 0.72rem; font-weight: 600;
-  letter-spacing: 0.28em; text-transform: uppercase;
+  letter-spacing: 0.24em; text-transform: uppercase;
   color: #f4eccb;
   background: transparent;
   border: 1px solid rgba(201,162,90,.4);
   border-radius: 4px;
   cursor: pointer;
-  transition: background .2s ease, border-color .2s ease, color .2s ease;
+  transition: background .2s ease, border-color .2s ease, color .2s ease, transform .15s ease;
 }
 .btn-ghost:hover { background: rgba(201,162,90,.08); border-color: #c9a25a; color: #e6c178; }
+.btn-ghost:active { transform: scale(0.97); transition-duration: 80ms; }
+.btn-ghost:focus-visible { outline: 2px solid #c9a25a; outline-offset: 2px; }
+.btn-ghost:disabled { opacity: .35; cursor: not-allowed; pointer-events: none; }
 
 .btn-ember {
   display: inline-flex; align-items: center; justify-content: center;
+  min-height: 44px;
   padding: 9px 16px;
   font-family: '"Plus Jakarta Sans"', system-ui, sans-serif;
   font-size: 0.7rem; font-weight: 600; letter-spacing: 0.24em; text-transform: uppercase;
@@ -307,6 +353,8 @@ body::after {
   transition: filter .15s ease, transform .15s ease;
 }
 .btn-ember:hover { filter: brightness(1.1); transform: translateY(-1px); }
+.btn-ember:active { transform: scale(0.97); transition-duration: 80ms; }
+.btn-ember:focus-visible { outline: 2px solid #c9a25a; outline-offset: 2px; }
 
 /* Drop cap / chip helpers */
 .chip {

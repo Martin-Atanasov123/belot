@@ -5,7 +5,7 @@ import { createRoom } from '../lib/api.js'
 import { getNickname, getPlayerIdFor, setNickname } from '../lib/identity.js'
 import { useT } from '../i18n/index.js'
 import { Flourish, Monogram, CornerOrnament } from '../components/Ornaments.js'
-import { LanguageToggle } from '../components/LanguageToggle.js'
+import { PublicNav } from '../components/PublicNav.js'
 
 export function Landing() {
   const t = useT()
@@ -52,14 +52,16 @@ export function Landing() {
         />
       </div>
 
-      <LanguageToggle className="fixed top-5 right-5 z-30" />
+      {/* Public navigation — transparent over the hero, solid on scroll. */}
+      <PublicNav overHero />
 
       {/* ─── HERO ─── */}
-      <section className="relative min-h-[100dvh] grid lg:grid-cols-[1.05fr_0.95fr] overflow-hidden">
-        <CornerOrnament className="absolute top-4 left-4 w-9 h-9 sm:w-12 sm:h-12 text-brass/40" />
-        <CornerOrnament className="absolute top-4 right-4 w-9 h-9 sm:w-12 sm:h-12 text-brass/40" style={{ transform: 'scaleX(-1)' } as React.CSSProperties} />
+      {/* Pad-top reserves space for the fixed PublicNav (h-14 sm:h-16). */}
+      <section className="relative min-h-[100dvh] pt-14 sm:pt-16 grid lg:grid-cols-[1.05fr_0.95fr] overflow-hidden">
+        <CornerOrnament className="absolute top-20 left-4 w-9 h-9 sm:w-12 sm:h-12 text-brass/30" />
+        <CornerOrnament className="absolute top-20 right-4 w-9 h-9 sm:w-12 sm:h-12 text-brass/30" style={{ transform: 'scaleX(-1)' } as React.CSSProperties} />
 
-        <div className="relative z-[2] flex flex-col justify-between p-4 sm:p-8 lg:p-16 min-w-0">
+        <div className="relative z-[2] flex flex-col justify-between p-4 sm:p-8 lg:p-16 min-w-0 order-2 lg:order-1">
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -79,15 +81,15 @@ export function Landing() {
             transition={{ duration: 1.0, delay: 0.1 }}
             className="max-w-xl pt-8 lg:pt-0"
           >
-            <div className="eyebrow text-brass mb-4">{t('landing.eyebrow')}</div>
+            <div className="eyebrow eyebrow-active mb-4">{t('landing.eyebrow')}</div>
             <motion.h1
-              initial={{ opacity: 0, y: 12, letterSpacing: '0.18em' }}
+              initial={{ opacity: 0, y: 12, letterSpacing: '0.1em' }}
               animate={{ opacity: 1, y: 0, letterSpacing: '0em' }}
               transition={{ duration: 1.0, delay: 0.2, ease: [0.22, 0.61, 0.36, 1] }}
-              className="font-display text-cream leading-[0.95] font-bold break-words"
-              style={{ fontSize: 'clamp(56px, 9vw, 144px)' }}
+              className="font-display italic text-cream leading-[1.02] font-bold"
+              style={{ fontSize: 'clamp(36px, 6vw, 88px)' }}
             >
-              Белот
+              {t('landing.heroTitle')}
             </motion.h1>
             <motion.div
               initial={{ opacity: 0 }}
@@ -121,7 +123,7 @@ export function Landing() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 1.2, duration: 0.7 }}
-            className="hidden lg:flex items-end justify-between text-xs text-ash pt-8"
+            className="hidden lg:flex items-end justify-between text-xs text-ash pt-4 lg:pt-8"
           >
             <div className="flex items-center gap-6">
               <FactCol label={t('landing.deal')} value={t('landing.dealValue')} />
@@ -134,12 +136,12 @@ export function Landing() {
         </div>
 
         {/* Right column — form (the primary CTA) */}
-        <div className="relative flex items-center justify-center p-4 sm:p-8 lg:p-16 min-w-0">
+        <div className="relative flex items-center justify-center p-4 sm:p-8 lg:p-16 min-w-0 order-1 lg:order-2">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4, duration: 0.7, ease: 'easeOut' }}
-            className="relative z-10 w-full max-w-md plate p-5 sm:p-7 md:p-10"
+            className="relative z-10 w-full max-w-md plate p-4 sm:p-7 md:p-10"
           >
             <div className="text-center mb-6">
               <div className="eyebrow text-brass">{t('landing.formTitle')}</div>
@@ -167,15 +169,15 @@ export function Landing() {
               <div className="flex-1 h-px bg-brass/30" />
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <input
                 value={joinCode}
                 onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
                 maxLength={6}
                 placeholder={t('landing.codePh')}
-                className="input-salon flex-1 font-mono text-center tracking-[0.4em] uppercase"
+                className="input-salon w-full font-mono text-center tracking-[0.4em] uppercase"
               />
-              <button onClick={onJoin} className="btn-ghost">{t('landing.join')}</button>
+              <button onClick={onJoin} className="btn-ghost w-full sm:w-auto shrink-0">{t('landing.join')}</button>
             </div>
 
             {error && (
@@ -190,8 +192,11 @@ export function Landing() {
           </motion.div>
         </div>
 
-        {/* Fanned cards — decorative, centered in the hero */}
-        <FannedCards />
+        {/* Fanned cards — decorative; only shown on lg where hero is 2-column.
+          absolute + inset-0 keeps it out of grid flow so it never displaces columns. */}
+        <div aria-hidden className="hidden lg:block absolute inset-0 pointer-events-none">
+          <FannedCards />
+        </div>
 
         {/* Scroll hint */}
         <motion.a

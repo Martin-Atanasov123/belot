@@ -211,6 +211,7 @@ function applyPlayPhase(snap: GameSnapshot, action: Action): GameSnapshot | Engi
   // Belot tracking: if the played card is K-of-trump or Q-of-trump, and the player also holds
   // (or already played) the other, mark intent / declare.
   let belotIntent = snap.belotIntent
+  let announcements = snap.announcements
   if (
     snap.trump !== null &&
     action.card.suit === snap.trump &&
@@ -224,9 +225,16 @@ function applyPlayPhase(snap: GameSnapshot, action: Action): GameSnapshot | Engi
     if (stillInHand) {
       // First half played — start intent for this seat.
       belotIntent = { seat, played: 1 }
-    } else if (belotIntent && belotIntent.seat === seat) {
+    } else if (belotIntent && belotIntent.seat === seat && belotIntent.played === 1) {
       // Second half played by same seat → belot completes.
+      // Append a live `belot` announcement so the client banner can pop up at the
+      // exact moment the second card is played (carrés/sequences were frozen on trick 1;
+      // this is the only announcement that lands mid-hand).
       belotIntent = { seat, played: 2 }
+      announcements = [
+        ...announcements,
+        { kind: 'belot', seat, suit: snap.trump, points: 20 },
+      ]
     }
   }
 
@@ -242,6 +250,7 @@ function applyPlayPhase(snap: GameSnapshot, action: Action): GameSnapshot | Engi
       currentTrick: trick,
       turn: winnerSeat,
       belotIntent,
+      announcements,
     }
   }
 
@@ -251,6 +260,7 @@ function applyPlayPhase(snap: GameSnapshot, action: Action): GameSnapshot | Engi
     currentTrick: trick,
     turn: nextSeat(seat),
     belotIntent,
+    announcements,
   }
   return next
 }
@@ -503,6 +513,17 @@ export function projectView(snap: GameSnapshot, you: Seat): PlayerView {
         points: c.points,
       })),
     ]
+    // Surface a potential belot: K + Q of trump held by THIS player. Only meaningful in
+    // suit contracts (trump !== null). In AT every suit is trump but there is no belot
+    // pair per the canonical rules — we still allow it when trump matches the contract.
+    if (snap.trump !== null && holdsBelotPair(myDealHand, snap.trump)) {
+      yourPotentialAnnouncements.push({
+        kind: 'belot',
+        seat: you,
+        suit: snap.trump,
+        points: 20,
+      })
+    }
   }
 
   return {

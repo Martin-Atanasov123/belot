@@ -4,18 +4,21 @@ export default {
   theme: {
     extend: {
       colors: {
-        ink:    '#0a0f0d',
-        racing: '#0e251c',
-        felt:   '#143b2e',
-        feltHi: '#1c5240',
-        brass:  '#c9a25a',
-        brassHi:'#e6c178',
-        cream:  '#f4eccb',
-        paper:  '#ece2c2',
-        ember:  '#7d1f2b',
-        emberHi:'#a4303f',
-        smoke:  '#e8e2d1',
-        ash:    '#9aa39c',
+        // Per Atmospheric Minimalism spec — `design-prompt-belot.md`
+        ink:      '#0a0f0d', // page background — deep night
+        void:     '#050908', // deepest black — overlays, modals
+        racing:   '#0e251c', // table base / Tier B flat background
+        felt:     '#143b2e', // table hover zones
+        feltHi:   '#1c5240', // active table glow (Tier B static glow only)
+        brass:    '#c9a25a', // primary accent — USE SPARINGLY (see spec checklist)
+        brassHi:  '#e6c178', // hover / active / selected
+        brassDim: '#8a6a30', // inactive brass — labels only, no decorative use
+        cream:    '#f4eccb', // primary text
+        paper:    '#ece2c2', // card face, secondary text
+        ember:    '#7d1f2b', // danger / contra / timer warning
+        emberHi:  '#a4303f', // contra hover / tension state
+        smoke:    '#e8e2d1', // hero subheadings
+        ash:      '#9aa39c', // metadata, disabled, labels
       },
       fontFamily: {
         display: ['"Playfair Display"', 'Georgia', 'serif'],
@@ -24,6 +27,8 @@ export default {
       },
       letterSpacing: {
         widest2: '0.32em',
+        eyebrow: '0.24em', // per spec — eyebrow labels (UPPERCASED SMALL CAPS)
+        body:    '0.06em', // per spec — normal UI letter-spacing
       },
       boxShadow: {
         card:      '0 18px 30px -18px rgba(0,0,0,.7), 0 2px 4px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.04)',

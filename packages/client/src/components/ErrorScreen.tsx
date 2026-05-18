@@ -70,7 +70,7 @@ export function ErrorScreen({
         style={{ transform: 'scale(-1,-1)' } as React.CSSProperties}
       />
 
-      <LanguageToggle className="absolute top-5 right-5 z-30" />
+      <LanguageToggle className="absolute top-5 left-1/2 -translate-x-1/2 sm:left-auto sm:translate-x-0 sm:right-5 z-30" />
 
       <motion.div
         initial={{ opacity: 0, y: 16 }}

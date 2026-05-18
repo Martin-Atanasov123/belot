@@ -5,7 +5,8 @@ import { useGame } from '../store/game.js'
 import { useT } from '../i18n/index.js'
 import { CardView } from './Card.js'
 import { BiddingPanel } from './BiddingPanel.js'
-import { CornerOrnament, Monogram } from './Ornaments.js'
+import { Monogram } from './Ornaments.js'
+import { VictoryOverlay } from './VictoryOverlay.js'
 import { LanguageToggle } from './LanguageToggle.js'
 import { FloatingReactions, ReactionsBar } from './Reactions.js'
 import { sortHandForDisplay } from '../lib/sortHand.js'
@@ -155,8 +156,10 @@ export function Table() {
     return (
       <motion.div
         layout
+        // Per spec §18: active player gets a STATIC glow, not a brass pulse animation.
+        // The `seat-active-static` utility comes from index.css.
         className={`relative plate ${size} inline-flex flex-col items-center gap-0.5 ${
-          isActive ? 'seat-active' : ''
+          isActive ? 'seat-active-static' : ''
         }`}
         {...(isActive ? { style: { borderColor: 'rgba(230,193,120,0.85)' } } : {})}
       >
@@ -222,17 +225,13 @@ export function Table() {
 
   const [historyOpen, setHistoryOpen] = useState(false)
 
-  // ── Layout ─────────────────────────────────────────────────────────────
+  // ── Layout — Tier B (Battlefield) per design spec §17/18.
+  // No film grain, no ornaments, no atmospheric glows. Flat racing background.
+  // The `tier-b` class drops --grain-opacity to 0 globally for this view.
   return (
-    <div className="min-h-[100dvh] bg-ink relative overflow-hidden flex flex-col no-select">
-      <div className="pointer-events-none absolute inset-0 bg-felt-noise" />
+    <div className="tier-b battlefield min-h-[100dvh] relative overflow-hidden flex flex-col no-select">
 
-      <CornerOrnament className="absolute top-2 left-2 w-7 h-7 sm:w-12 sm:h-12 text-brass/30 z-10" />
-      <CornerOrnament className="absolute top-2 right-2 w-7 h-7 sm:w-12 sm:h-12 text-brass/30 z-10" style={{ transform: 'scaleX(-1)' } as React.CSSProperties} />
-      <CornerOrnament className="absolute bottom-2 left-2 w-7 h-7 sm:w-12 sm:h-12 text-brass/30 z-10" style={{ transform: 'scaleY(-1)' } as React.CSSProperties} />
-      <CornerOrnament className="absolute bottom-2 right-2 w-7 h-7 sm:w-12 sm:h-12 text-brass/30 z-10" style={{ transform: 'scale(-1,-1)' } as React.CSSProperties} />
-
-      <header className="relative z-20 border-b border-brass/20 bg-ink/40 backdrop-blur-sm">
+      <header className="relative z-20 border-b border-brass/15 bg-racing/95 backdrop-blur-sm">
         <div className="flex items-center justify-between px-2 sm:px-5 py-1.5 sm:py-3 gap-2">
           <div className="flex items-center gap-2 sm:gap-4 min-w-0">
             <Link
@@ -424,6 +423,9 @@ export function Table() {
       {/* Hand-result overlay shown briefly at the start of a new hand */}
       <HandResultBanner />
 
+      {/* Cinematic victory / defeat overlay — only when match ends */}
+      {view.phase === 'GAME_OVER' && <VictoryOverlay />}
+
       {/* Quick reactions — bottom-right button + floating emotes near seats */}
       <ReactionsBar canReact={mySeat !== null} />
       <FloatingReactions visualPosForSeat={visualSeat} />
@@ -510,89 +512,307 @@ function CombinationChip({ a }: { a: Announcement }) {
       </span>
     )
   }
+  if (a.kind === 'belot') {
+    return (
+      <span className="font-mono text-[10px] tracking-[0.12em] px-1.5 py-0.5 rounded bg-amber-900/20 border border-amber-700/40 text-stone-800">
+        Белот {SUIT_GLYPH[a.suit]}<span className="text-brass-hi ml-1">+20</span>
+      </span>
+    )
+  }
   return null
 }
 
-// ── Hand-result banner (shown briefly between hands) ───────────────────
+// ── Hand-result modal — per design spec §11 РЕЗУЛТАТ НА РЪКА ───────────
+// Full-screen `void/85` overlay. Centered `plate-cream` panel with:
+//  · header (Раздаване N · contract glyph · ×N multiplier · close)
+//  · bidder + outcome badge (brass / ember-hi / ash by outcome)
+//  · breakdown rows (Карти / Обявки / Белот / Капо)
+//  · ruled total + ÷10 board row
+//  · running match score row (NEW — running cumulative NS vs EW)
+//  · "Следваща ръка ({count})" brass button (NEW — countdown from 8s, click dismisses)
 function HandResultBanner() {
+  const t = useT()
   const view = useGame((s) => s.view)!
   const room = useGame((s) => s.room)!
   const [visible, setVisible] = useState(false)
-  const [shownFor, setShownFor] = useState<number | null>(null)
+  const [secondsLeft, setSecondsLeft] = useState(8)
+  // StrictMode-safe ref pattern (mirrors AnnouncementsBanner above).
+  const shownForHandRef = useRef<number | null>(null)
+  const showAtRef = useRef<number>(0)
+  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const dismissRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const r = view.lastHandResult
 
+  const clearTimers = useCallback(() => {
+    if (tickRef.current) { clearInterval(tickRef.current); tickRef.current = null }
+    if (dismissRef.current) { clearTimeout(dismissRef.current); dismissRef.current = null }
+  }, [])
+
+  const dismiss = useCallback(() => {
+    clearTimers()
+    setVisible(false)
+  }, [clearTimers])
+
+  // Trigger once per new handNo.
   useEffect(() => {
     if (!r) return
-    if (shownFor === r.handNo) return
+    if (shownForHandRef.current === r.handNo) return
+    shownForHandRef.current = r.handNo
+    clearTimers()
     setVisible(true)
-    setShownFor(r.handNo)
-    const id = setTimeout(() => setVisible(false), 6000)
-    return () => clearTimeout(id)
-  }, [r, shownFor])
+    setSecondsLeft(8)
+    showAtRef.current = Date.now()
+    tickRef.current = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - showAtRef.current) / 1000)
+      const remaining = Math.max(0, 8 - elapsed)
+      setSecondsLeft(remaining)
+    }, 250)
+    dismissRef.current = setTimeout(() => {
+      setVisible(false)
+      clearTimers()
+    }, 8000)
+  }, [r, clearTimers])
+
+  // Cleanup only on unmount (StrictMode safe).
+  useEffect(() => () => clearTimers(), [clearTimers])
 
   if (!r) return null
+
+  const onBackdrop = () => {
+    // Anti-misclick: ignore click-outside in the first 2 seconds.
+    if (Date.now() - showAtRef.current < 2000) return
+    dismiss()
+  }
 
   return (
     <AnimatePresence>
       {visible && (
         <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          className="absolute top-20 left-1/2 -translate-x-1/2 z-30 pointer-events-auto"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.25 }}
+          onClick={onBackdrop}
+          className="fixed inset-0 z-30 flex items-center justify-center p-3 sm:p-6 bg-void/85 backdrop-blur-md"
         >
-          <HandResultCard r={r} bidderName={room.seats[r.bidder]?.nickname ?? '—'} onClose={() => setVisible(false)} />
+          <motion.div
+            initial={{ opacity: 0, y: 12, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 12, scale: 0.96 }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-md"
+          >
+            <HandResultCard
+              r={r}
+              bidderName={room.seats[r.bidder]?.nickname ?? '—'}
+              matchScore={view.matchScore}
+              secondsLeft={secondsLeft}
+              onClose={dismiss}
+              nextLabel={t('result.nextCountdown', { n: secondsLeft })}
+              t={t}
+            />
+          </motion.div>
         </motion.div>
       )}
     </AnimatePresence>
   )
 }
 
-function HandResultCard({ r, bidderName, onClose }: { r: LastHandResult; bidderName: string; onClose: () => void }) {
+function HandResultCard({
+  r,
+  bidderName,
+  matchScore,
+  secondsLeft: _secondsLeft,
+  onClose,
+  nextLabel,
+  t,
+}: {
+  r: LastHandResult
+  bidderName: string
+  matchScore: { NS: number; EW: number }
+  secondsLeft: number
+  onClose: () => void
+  nextLabel: string
+  t: ReturnType<typeof useT>
+}) {
   const outcomeLabel =
-    r.outcome === 'made' ? 'Изкарана' : r.outcome === 'inside' ? 'Вкарана' : 'Висяща'
+    r.outcome === 'made'
+      ? t('result.made')
+      : r.outcome === 'inside'
+        ? t('result.inside')
+        : t('result.suspended')
+  const outcomeColor =
+    r.outcome === 'made'
+      ? 'text-brass-hi'
+      : r.outcome === 'inside'
+        ? 'text-ember-hi'
+        : 'text-ash'
   const c = CONTRACT_GLYPH[r.contract]
+  const nsLeads = matchScore.NS > matchScore.EW
+  const ewLeads = matchScore.EW > matchScore.NS
+
   return (
-    <div className="plate px-4 py-3 sm:px-5 sm:py-4 max-w-[340px] sm:max-w-[400px] text-sm">
-      <div className="flex items-center justify-between gap-2 mb-2">
-        <div className="flex items-center gap-2">
-          <div className="eyebrow text-brass text-[9px]">Раздаване {r.handNo}</div>
-          <span className={`font-mono text-base leading-none ${c.red ? 'text-ember-hi' : 'text-brass-hi'}`}>{c.glyph}</span>
-          {r.multiplier > 1 && <span className="font-mono text-[10px] text-ember-hi">×{r.multiplier}</span>}
+    <div className="plate-cream p-5 sm:p-7 text-sm shadow-2xl">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <div className="flex items-baseline gap-2.5">
+          <div className="eyebrow text-stone-700 text-[10px]">
+            {t('result.title')} № {r.handNo}
+          </div>
+          <span
+            className={`font-mono text-xl leading-none ${
+              c.red ? 'text-ember' : 'text-stone-900'
+            }`}
+          >
+            {c.glyph}
+          </span>
+          {r.multiplier > 1 && (
+            <span className="font-mono text-xs font-bold text-ember tracking-widest">
+              ×{r.multiplier}
+            </span>
+          )}
         </div>
-        <button onClick={onClose} className="text-ash hover:text-cream text-lg leading-none">×</button>
+        <button
+          onClick={onClose}
+          aria-label={t('common.cancel')}
+          className="w-8 h-8 inline-flex items-center justify-center text-stone-600 hover:text-stone-900 text-xl leading-none rounded hover:bg-stone-900/5 transition"
+        >
+          ×
+        </button>
       </div>
 
-      <div className="font-display italic text-cream/80 text-xs mb-2">
-        {bidderName} · {outcomeLabel}
+      {/* Bidder + outcome badge */}
+      <div className="flex items-baseline justify-between mb-4">
+        <div className="font-display italic text-stone-800 text-base">{bidderName}</div>
+        <div className={`font-display italic font-bold text-lg ${outcomeColor}`}>
+          {outcomeLabel}
+        </div>
       </div>
 
-      <ResultRow label="Карти" ns={r.cardPoints.NS} ew={r.cardPoints.EW} />
+      {/* Breakdown */}
+      <ResultRowCream label={t('result.cards')} ns={r.cardPoints.NS} ew={r.cardPoints.EW} />
       {(r.announcementPoints.NS + r.announcementPoints.EW) > 0 && (
-        <ResultRow label="Обявки" ns={r.announcementPoints.NS} ew={r.announcementPoints.EW} />
+        <ResultRowCream
+          label={t('result.announ')}
+          ns={r.announcementPoints.NS}
+          ew={r.announcementPoints.EW}
+        />
       )}
       {(r.belotPoints.NS + r.belotPoints.EW) > 0 && (
-        <ResultRow label="Белот" ns={r.belotPoints.NS} ew={r.belotPoints.EW} />
+        <ResultRowCream
+          label={t('result.belot')}
+          ns={r.belotPoints.NS}
+          ew={r.belotPoints.EW}
+        />
       )}
       {r.capot && (
-        <ResultRow label="Капо +90" ns={r.capot === 'NS' ? 90 : 0} ew={r.capot === 'EW' ? 90 : 0} />
+        <ResultRowCream
+          label={`${t('result.capot')} +90`}
+          ns={r.capot === 'NS' ? 90 : 0}
+          ew={r.capot === 'EW' ? 90 : 0}
+        />
       )}
 
-      <div className="rule-brass my-2" />
+      <div
+        aria-hidden
+        className="h-px my-3"
+        style={{
+          background:
+            'linear-gradient(90deg, transparent, rgba(120,90,40,.55) 50%, transparent)',
+        }}
+      />
 
-      <ResultRow label="Общо точки" ns={r.awardedRaw.NS} ew={r.awardedRaw.EW} bold />
-      <ResultRow label="÷ 10 (на табло)" ns={r.awardedTens.NS} ew={r.awardedTens.EW} bold brass />
+      <ResultRowCream
+        label={t('result.total')}
+        ns={r.awardedRaw.NS}
+        ew={r.awardedRaw.EW}
+        bold
+      />
+      <ResultRowCream
+        label={t('result.toBoard')}
+        ns={r.awardedTens.NS}
+        ew={r.awardedTens.EW}
+        bold
+        brass
+      />
+
+      {/* Running match score — NEW per spec */}
+      <div
+        aria-hidden
+        className="h-px my-3"
+        style={{
+          background:
+            'linear-gradient(90deg, transparent, rgba(120,90,40,.55) 50%, transparent)',
+        }}
+      />
+
+      <div className="text-center">
+        <div className="eyebrow text-stone-700">{t('result.matchScore')}</div>
+        <div className="mt-2 flex items-baseline justify-center gap-4 sm:gap-6 font-mono">
+          <div className="text-right">
+            <div className="text-[10px] text-stone-600 tracking-widest">{t('table.teamNS')}</div>
+            <div
+              className={`text-3xl sm:text-4xl font-bold ${
+                nsLeads ? 'text-brass' : 'text-stone-900'
+              }`}
+            >
+              {matchScore.NS}
+            </div>
+          </div>
+          <div className="text-stone-600 text-2xl leading-none">:</div>
+          <div className="text-left">
+            <div className="text-[10px] text-stone-600 tracking-widest">{t('table.teamEW')}</div>
+            <div
+              className={`text-3xl sm:text-4xl font-bold ${
+                ewLeads ? 'text-brass' : 'text-stone-900'
+              }`}
+            >
+              {matchScore.EW}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Next-hand button with countdown */}
+      <button
+        onClick={onClose}
+        className="btn-brass w-full mt-5"
+      >
+        {nextLabel}
+      </button>
     </div>
   )
 }
 
-function ResultRow({ label, ns, ew, bold, brass }: { label: string; ns: number; ew: number; bold?: boolean; brass?: boolean }) {
-  const color = brass ? 'text-brass-hi' : bold ? 'text-cream' : 'text-cream/80'
+// Variant of ResultRow tuned for the plate-cream (light) modal background.
+function ResultRowCream({
+  label,
+  ns,
+  ew,
+  bold,
+  brass,
+}: {
+  label: string
+  ns: number
+  ew: number
+  bold?: boolean
+  brass?: boolean
+}) {
+  const color = brass
+    ? 'text-brass'
+    : bold
+      ? 'text-stone-900'
+      : 'text-stone-700'
   return (
-    <div className={`grid grid-cols-[1fr_auto_auto] items-baseline gap-3 font-mono text-[11px] ${color}`}>
+    <div
+      className={`grid grid-cols-[1fr_auto_auto] items-baseline gap-3 font-mono text-[12px] py-0.5 ${color} ${
+        bold ? 'font-bold' : ''
+      }`}
+    >
       <span className={bold ? 'font-display italic not-italic' : ''}>{label}</span>
-      <span className="text-right">{ns}</span>
-      <span className="text-right">{ew}</span>
+      <span className="text-right tabular-nums w-10">{ns}</span>
+      <span className="text-right tabular-nums w-10">{ew}</span>
     </div>
   )
 }
@@ -717,24 +937,8 @@ function PlayZone({
           </motion.div>
         )}
 
-        {/* Game over */}
-        {view.phase === 'GAME_OVER' && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.85 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="plate px-4 sm:px-6 py-3 sm:py-4 text-center"
-            >
-              <div className="eyebrow text-brass mb-1 text-[9px] sm:text-[10px]">{t('table.gameOver')}</div>
-              <div className="font-display text-cream text-xl sm:text-2xl">
-                {view.matchScore.NS > view.matchScore.EW ? t('table.teamNS') : t('table.teamEW')}
-              </div>
-              <div className="font-mono text-brass-hi mt-1 tracking-widest text-xs sm:text-sm">
-                {view.matchScore.NS} : {view.matchScore.EW}
-              </div>
-            </motion.div>
-          </div>
-        )}
+        {/* Game over — moved out of the felt into a full-screen cinematic overlay
+            (see <VictoryOverlay/> rendered at the root of <Table/>). */}
 
         {/* Dynamic announcements banner — see <AnnouncementsBanner/> rendered separately */}
       </div>
@@ -750,10 +954,12 @@ function AnnouncementsBanner() {
   const room = useGame((s) => s.room)!
   const [visible, setVisible] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // Track which hand we've already shown for — avoids re-triggering on state changes.
-  const shownForHandRef = useRef<number | null>(null)
+  // Track which (hand, announcement-count) we've already shown for. Including the
+  // announcement count means a freshly-added belot mid-hand re-triggers the banner
+  // (carrés/sequences fire on trick 1, belot fires later when the second K/Q lands).
+  const shownForSigRef = useRef<string | null>(null)
 
-  const handSig = view.handNo
+  const handSig = `${view.handNo}:${view.announcements.length}`
   const hasAnn = view.announcements.length > 0
 
   const clearTimer = useCallback(() => {
@@ -775,8 +981,8 @@ function AnnouncementsBanner() {
       setVisible(false)
       return
     }
-    if (shownForHandRef.current === handSig) return
-    shownForHandRef.current = handSig
+    if (shownForSigRef.current === handSig) return
+    shownForSigRef.current = handSig
     clearTimer()
     setVisible(true)
     timerRef.current = setTimeout(() => {
@@ -804,7 +1010,7 @@ function AnnouncementsBanner() {
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -20, transition: { duration: 0.5 } }}
           transition={{ type: 'spring', stiffness: 240, damping: 24 }}
-          className="absolute z-30 left-3 sm:left-6 bottom-28 sm:bottom-44"
+          className="absolute z-30 left-2 sm:left-6 bottom-24 sm:bottom-44"
         >
           <div className="plate px-3 py-2 max-w-[78vw] sm:max-w-[260px] border border-brass-hi/40">
             <div className="flex items-center justify-between gap-2 mb-1">
@@ -849,6 +1055,7 @@ function AnnouncementsBanner() {
                   {a.kind === 'belot' && (
                     <>
                       <span className="text-cream/80">Белот</span>
+                      <span className="text-ember-hi">{SUIT_GLYPH[a.suit]}</span>
                       <span className="text-brass-hi">+20</span>
                     </>
                   )}

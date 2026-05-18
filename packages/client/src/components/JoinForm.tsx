@@ -35,7 +35,7 @@ export function JoinForm({
   }
 
   return (
-    <div className="min-h-screen bg-ink relative overflow-hidden flex items-center justify-center p-6">
+    <div className="min-h-screen bg-ink relative overflow-hidden flex items-center justify-center p-3 sm:p-6">
       <div className="pointer-events-none absolute inset-0 bg-felt-noise opacity-90" />
       <CornerOrnament className="absolute top-5 left-5 w-10 h-10 text-brass/40" />
       <CornerOrnament className="absolute top-5 right-5 w-10 h-10 text-brass/40" style={{ transform: 'scaleX(-1)' } as React.CSSProperties} />
@@ -47,7 +47,7 @@ export function JoinForm({
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7, ease: 'easeOut' }}
-        className="relative z-10 w-full max-w-md plate p-8 md:p-10"
+        className="relative z-10 w-full max-w-md plate p-5 sm:p-8 md:p-10"
       >
         <div className="flex flex-col items-center mb-4">
           <Monogram size={42} />

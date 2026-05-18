@@ -1,48 +1,191 @@
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import { CornerOrnament, Flourish, Monogram } from '../components/Ornaments.js'
-import { LanguageToggle } from '../components/LanguageToggle.js'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Flourish, Monogram } from '../components/Ornaments.js'
+import { PublicNav } from '../components/PublicNav.js'
 import { useI18n, useT } from '../i18n/index.js'
+import type { MessageKey } from '../i18n/bg.js'
+
+// Rules page — per design spec §2 ПРАВИЛА.
+// Tier A but: "no film grain on this page — readability over atmosphere".
+// Sticky sidebar nav (LG+) with section anchors and brass underline on active.
+// Mobile (<LG): collapsible top accordion with the same links.
+// Section IDs are stable slugs so #anchor URLs survive re-renders.
+
+type SectionDef = { id: string; labelKey: MessageKey }
+
+const SECTIONS: SectionDef[] = [
+  { id: 'cards',     labelKey: 'rules.sec.cards' },
+  { id: 'deal',      labelKey: 'rules.sec.deal' },
+  { id: 'contracts', labelKey: 'rules.sec.contracts' },
+  { id: 'values',    labelKey: 'rules.sec.values' },
+  { id: 'play',      labelKey: 'rules.sec.play' },
+  { id: 'announ',    labelKey: 'rules.sec.announ' },
+  { id: 'scoring',   labelKey: 'rules.sec.scoring' },
+  { id: 'outcome',   labelKey: 'rules.sec.outcome' },
+  { id: 'match',     labelKey: 'rules.sec.match' },
+  { id: 'faq',       labelKey: 'rules.sec.faq' },
+]
 
 export function Rules() {
   const t = useT()
   const locale = useI18n((s) => s.locale)
+  const [activeId, setActiveId] = useState<string>(SECTIONS[0]!.id)
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const contentRef = useRef<HTMLElement>(null)
+
+  // Active section tracking via IntersectionObserver — robust on scroll without
+  // listening to scroll events directly.
+  useEffect(() => {
+    const ids = SECTIONS.map((s) => s.id)
+    const elements = ids
+      .map((id) => document.getElementById(id))
+      .filter((el): el is HTMLElement => el !== null)
+
+    if (elements.length === 0) return
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        // Pick the section closest to the top of the viewport that is currently visible.
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)
+        if (visible[0]) setActiveId(visible[0].target.id)
+      },
+      // Trigger when ~30% from top — top of section enters the upper third.
+      { rootMargin: '-30% 0px -60% 0px', threshold: [0, 0.5, 1] },
+    )
+    elements.forEach((el) => obs.observe(el))
+    return () => obs.disconnect()
+  }, [locale]) // re-init when language switches (DOM nodes are different React subtree)
+
+  const onJumpTo = (id: string) => {
+    setMobileNavOpen(false)
+    const el = document.getElementById(id)
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   return (
-    <div className="min-h-screen bg-ink relative overflow-x-hidden">
-      <div className="pointer-events-none absolute inset-0 bg-felt-noise opacity-90" />
+    <div className="min-h-screen bg-ink relative">
+      {/* Per spec §2: NO film grain on this page. The plain ink background reads cleanly. */}
+      <PublicNav />
 
-      <CornerOrnament className="absolute top-5 left-5 w-10 h-10 text-brass/40" />
-      <CornerOrnament className="absolute top-5 right-5 w-10 h-10 text-brass/40" style={{ transform: 'scaleX(-1)' } as React.CSSProperties} />
-
-      <LanguageToggle className="absolute top-5 right-1/2 translate-x-1/2 lg:right-20 lg:translate-x-0 z-30" />
-
-      <main className="relative z-10 max-w-3xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+      <main className="relative z-10 pt-20 sm:pt-24 pb-12 px-4 sm:px-6 max-w-6xl mx-auto">
+        {/* Hero header */}
         <motion.div
-          initial={{ opacity: 0, y: 12 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7 }}
+          transition={{ duration: 0.5 }}
           className="flex flex-col items-center mb-8"
         >
-          <Monogram size={48} />
-          <div className="eyebrow text-brass mt-3">{t('rules.eyebrow')}</div>
-          <h1 className="font-display text-cream text-5xl sm:text-6xl mt-2 leading-none">
+          <Monogram size={42} />
+          <div className="eyebrow eyebrow-active mt-3">{t('rules.eyebrow')}</div>
+          <h1 className="font-display italic text-cream text-4xl sm:text-5xl lg:text-6xl mt-2 leading-none text-center">
             {t('rules.title')}
           </h1>
-          <Flourish className="w-64 text-brass/40 mt-4" />
+          <Flourish className="w-56 text-brass/40 mt-4" />
         </motion.div>
 
-        <article className="plate p-6 sm:p-10 prose-rules">
-          {locale === 'bg' ? <RulesBG /> : <RulesEN />}
-        </article>
-
-        <div className="text-center mt-8">
-          <Link to="/" className="btn-ghost">{t('rules.backHome')}</Link>
+        {/* Mobile accordion nav — closed by default. */}
+        <div className="lg:hidden mb-5">
+          <button
+            type="button"
+            onClick={() => setMobileNavOpen((s) => !s)}
+            aria-expanded={mobileNavOpen}
+            className="w-full plate px-4 py-3 flex items-center justify-between text-left"
+          >
+            <span>
+              <span className="eyebrow eyebrow-active block">{t('rules.nav')}</span>
+              <span className="font-display italic text-cream/85 text-sm mt-0.5 block">
+                {t(SECTIONS.find((s) => s.id === activeId)?.labelKey ?? 'rules.sec.cards')}
+              </span>
+            </span>
+            <motion.span
+              animate={{ rotate: mobileNavOpen ? 180 : 0 }}
+              transition={{ duration: 0.18 }}
+              className="text-brass-hi text-lg"
+            >
+              ⌄
+            </motion.span>
+          </button>
+          <AnimatePresence initial={false}>
+            {mobileNavOpen && (
+              <motion.ol
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.22, ease: 'easeOut' }}
+                className="overflow-hidden mt-2 plate px-2 py-2 flex flex-col"
+              >
+                {SECTIONS.map((s, i) => (
+                  <li key={s.id}>
+                    <button
+                      type="button"
+                      onClick={() => onJumpTo(s.id)}
+                      className={`w-full text-left px-3 py-2 font-display italic transition ${
+                        activeId === s.id ? 'text-brass-hi' : 'text-cream/85 hover:text-brass-hi'
+                      }`}
+                    >
+                      <span className="font-mono text-[10px] tracking-widest text-ash mr-3">
+                        {String(i + 1).padStart(2, '0')}
+                      </span>
+                      {t(s.labelKey)}
+                    </button>
+                  </li>
+                ))}
+              </motion.ol>
+            )}
+          </AnimatePresence>
         </div>
 
-        <p className="text-center text-ash text-xs mt-6 italic">
-          {t('rules.source')}
-        </p>
+        {/* Two-column layout: sticky sidebar + content */}
+        <div className="lg:grid lg:grid-cols-[220px_1fr] lg:gap-10">
+          {/* Sticky sidebar — LG+ only */}
+          <aside className="hidden lg:block">
+            <nav className="sticky top-24">
+              <div className="eyebrow eyebrow-active mb-3">{t('rules.nav')}</div>
+              <ol className="flex flex-col gap-1.5">
+                {SECTIONS.map((s, i) => (
+                  <li key={s.id}>
+                    <button
+                      type="button"
+                      onClick={() => onJumpTo(s.id)}
+                      className={`group relative w-full text-left pl-3 py-1.5 font-display italic text-sm transition ${
+                        activeId === s.id
+                          ? 'text-brass-hi'
+                          : 'text-cream/65 hover:text-cream'
+                      }`}
+                    >
+                      <span className="font-mono text-[9px] tracking-widest text-ash mr-2">
+                        {String(i + 1).padStart(2, '0')}
+                      </span>
+                      {t(s.labelKey)}
+                      {/* brass underline (per spec: no background highlight) */}
+                      {activeId === s.id && (
+                        <motion.span
+                          layoutId="rules-active-underline"
+                          className="absolute left-0 top-0 bottom-0 w-[2px] bg-brass"
+                          transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                        />
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            </nav>
+          </aside>
+
+          {/* Content */}
+          <article ref={contentRef} className="prose-rules">
+            {locale === 'bg' ? <RulesBG /> : <RulesEN />}
+
+            <div className="text-center mt-12">
+              <Link to="/" className="btn-ghost">{t('rules.backHome')}</Link>
+            </div>
+
+            <p className="text-center text-ash text-xs mt-6 italic">{t('rules.source')}</p>
+          </article>
+        </div>
       </main>
     </div>
   )
@@ -52,7 +195,7 @@ export function Rules() {
 function RulesBG() {
   return (
     <>
-      <Section title="1. Карти и места">
+      <Section id="cards" title="1. Карти и места">
         <P>
           Играе се с <B>32-картово тесте</B>: ранговете <C>7, 8, 9, 10, J, Q, K, A</C>
           {' '}във всяка от четирите бои <C>♣ ♦ ♥ ♠</C>.
@@ -63,7 +206,7 @@ function RulesBG() {
         </P>
       </Section>
 
-      <Section title="2. Раздаване">
+      <Section id="deal" title="2. Раздаване">
         <P>
           Раздаването става в два кръга. Първо всеки получава <B>5 карти</B> — обикновено
           3 + 2. След това започва наддаването. Когато се избере договор, раздаващият дава
@@ -75,7 +218,7 @@ function RulesBG() {
         </P>
       </Section>
 
-      <Section title="3. Договори (видове игра)">
+      <Section id="contracts" title="3. Договори (видове игра)">
         <Table headers={['Договор', 'Бой коз', 'Описание']} rows={[
           ['♣ Спатия', '♣', 'Стандартна козова игра'],
           ['♦ Каро', '♦', 'Стандартна козова игра'],
@@ -98,7 +241,7 @@ function RulesBG() {
         </P>
       </Section>
 
-      <Section title="4. Стойности на картите">
+      <Section id="values" title="4. Стойности на картите">
         <Table headers={['Карта', 'При коз', 'Не-коз']} rows={[
           ['J', '20', '2'],
           ['9', '14', '0'],
@@ -129,7 +272,7 @@ function RulesBG() {
         </P>
       </Section>
 
-      <Section title="5. Разиграване">
+      <Section id="play" title="5. Разиграване">
         <P>
           Първата взятка започва играчът отдясно на раздаващия. Победителят на всяка
           взятка извежда следващата.
@@ -143,7 +286,7 @@ function RulesBG() {
         ]} />
       </Section>
 
-      <Section title="6. Обявки (анонси)">
+      <Section id="announ" title="6. Обявки (анонси)">
         <P>
           Обявките се правят при <B>изиграване на първата карта</B> в раздаването.{' '}
           <B>В „Без коз" обявки не са разрешени</B>, освен последно 10 и капо.
@@ -176,7 +319,7 @@ function RulesBG() {
         </P>
       </Section>
 
-      <Section title="7. Точкуване">
+      <Section id="scoring" title="7. Точкуване">
         <P>
           След изиграването на 8-те взятки точките се събират:
         </P>
@@ -193,7 +336,7 @@ function RulesBG() {
         </P>
       </Section>
 
-      <Section title="8. Изкарана, вкарана, висяща">
+      <Section id="outcome" title="8. Изкарана, вкарана, висяща">
         <P>
           Накрая на раздаването се сравняват сумите на двата отбора:
         </P>
@@ -209,7 +352,7 @@ function RulesBG() {
         </P>
       </Section>
 
-      <Section title="9. Резултат на мача">
+      <Section id="match" title="9. Резултат на мача">
         <P>
           Точките от ръката се <B>делят на 10</B> и закръгляват — това е стойността,
           която отива на таблото. Така стандартното раздаване дава ~16 точки (162 / 10).
@@ -221,7 +364,7 @@ function RulesBG() {
         </P>
       </Section>
 
-      <Section title="10. Спорни ситуации (FAQ)">
+      <Section id="faq" title="10. Спорни ситуации (FAQ)">
         <Q q="Какво става при 4 паса в първото наддаване?" a="Раздаването се прекратява и следващият раздаващ дава отново." />
         <Q q="Закъснял анонс — мога ли да обявя комбинация след изиграната първа карта?" a="Не. Анонсите се правят при изиграване на първата карта в раздаването. След това вече е невалиден." />
         <Q q="Имам каре дами и поредица Q-K-A от пика. Записвам ли двете?" a="Не. Картата Q♠ не може да брои в двете комбинации. Карето печели (по-стойностно) и поредицата отпада." />
@@ -239,7 +382,7 @@ function RulesBG() {
 function RulesEN() {
   return (
     <>
-      <Section title="1. Cards and seats">
+      <Section id="cards" title="1. Cards and seats">
         <P>
           A standard <B>32-card deck</B> is used: ranks <C>7, 8, 9, 10, J, Q, K, A</C>
           {' '}in each of four suits <C>♣ ♦ ♥ ♠</C>.
@@ -250,7 +393,7 @@ function RulesEN() {
         </P>
       </Section>
 
-      <Section title="2. The deal">
+      <Section id="deal" title="2. The deal">
         <P>
           Two rounds. First, every player receives <B>5 cards</B> (typically 3 + 2).
           Bidding then begins. Once a contract is chosen, the dealer gives each player{' '}
@@ -262,7 +405,7 @@ function RulesEN() {
         </P>
       </Section>
 
-      <Section title="3. Contracts">
+      <Section id="contracts" title="3. Contracts">
         <Table headers={['Contract', 'Trump suit', 'Notes']} rows={[
           ['♣ Clubs', '♣', 'Standard suit-trump game'],
           ['♦ Diamonds', '♦', 'Standard suit-trump game'],
@@ -285,7 +428,7 @@ function RulesEN() {
         </P>
       </Section>
 
-      <Section title="4. Card values">
+      <Section id="values" title="4. Card values">
         <Table headers={['Card', 'Trump', 'Plain']} rows={[
           ['J', '20', '2'],
           ['9', '14', '0'],
@@ -316,7 +459,7 @@ function RulesEN() {
         </P>
       </Section>
 
-      <Section title="5. Play">
+      <Section id="play" title="5. Play">
         <P>
           The player to the right of the dealer leads the first trick. Whoever wins
           a trick leads the next.
@@ -330,7 +473,7 @@ function RulesEN() {
         ]} />
       </Section>
 
-      <Section title="6. Announcements">
+      <Section id="announ" title="6. Announcements">
         <P>
           Announcements are declared when playing your <B>first card</B> of the hand.{' '}
           <B>No announcements are allowed in No Trumps</B>, except the last-trick +10
@@ -364,7 +507,7 @@ function RulesEN() {
         </P>
       </Section>
 
-      <Section title="7. Scoring">
+      <Section id="scoring" title="7. Scoring">
         <P>
           After all 8 tricks, each team totals:
         </P>
@@ -381,7 +524,7 @@ function RulesEN() {
         </P>
       </Section>
 
-      <Section title="8. Made / Inside / Suspended">
+      <Section id="outcome" title="8. Made / Inside / Suspended">
         <P>
           Compare the two teams' totals at the end of the hand:
         </P>
@@ -397,7 +540,7 @@ function RulesEN() {
         </P>
       </Section>
 
-      <Section title="9. Match score">
+      <Section id="match" title="9. Match score">
         <P>
           A hand's points are <B>divided by 10</B> and rounded — that's what goes on
           the scoreboard. A typical hand thus yields ~16 points (162 / 10).
@@ -409,7 +552,7 @@ function RulesEN() {
         </P>
       </Section>
 
-      <Section title="10. Disputed situations (FAQ)">
+      <Section id="faq" title="10. Disputed situations (FAQ)">
         <Q q="What happens after 4 passes in the first round of bidding?" a="The hand is aborted and the next dealer reshuffles and re-deals." />
         <Q q="Late announcement — can I declare a combination after my first card?" a="No. Announcements must be made when playing the first card of the hand. After that they're invalid." />
         <Q q="I have four queens and Q-K-A of spades. Do I get both?" a="No. Q♠ can't count in both combinations. The carré (worth more) wins and the sequence drops." />
@@ -421,9 +564,17 @@ function RulesEN() {
 }
 
 // ── Layout primitives (locale-agnostic) ─────────────────────────────
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  id,
+  title,
+  children,
+}: {
+  id: string
+  title: string
+  children: React.ReactNode
+}) {
   return (
-    <section className="mb-8 last:mb-0">
+    <section id={id} className="mb-10 last:mb-0 scroll-mt-24">
       <h2 className="font-display text-cream text-2xl sm:text-3xl mb-3 mt-2 first:mt-0">
         {title}
       </h2>
@@ -482,3 +633,4 @@ function Q({ q, a }: { q: string; a: string }) {
     </div>
   )
 }
+

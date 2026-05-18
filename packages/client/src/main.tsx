@@ -4,6 +4,15 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { Landing } from './routes/Landing.js'
 import { RoomRoute } from './routes/RoomRoute.js'
 import { Rules } from './routes/Rules.js'
+import { Leaderboard } from './routes/Leaderboard.js'
+import { Premium } from './routes/Premium.js'
+import { Login, Signup, ForgotPassword } from './routes/AuthPages.js'
+import { Tablo } from './routes/Tablo.js'
+import { Settings } from './routes/Settings.js'
+import { Profile } from './routes/Profile.js'
+import { Tournaments } from './routes/Tournaments.js'
+import { TournamentDetail } from './routes/TournamentDetail.js'
+import { ComingSoon } from './routes/ComingSoon.js'
 import { ErrorScreen, NotFoundScreen } from './components/ErrorScreen.js'
 import { useI18n } from './i18n/index.js'
 import './index.css'
@@ -50,6 +59,21 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/" element={<Landing />} />
           <Route path="/r/:code" element={<RoomRoute />} />
           <Route path="/rules" element={<Rules />} />
+          {/* Bulgarian-localised aliases per spec (URL slugs in Bulgarian/transliterated). */}
+          <Route path="/pravila" element={<Rules />} />
+          <Route path="/klasacia" element={<Leaderboard />} />
+          <Route path="/premium" element={<Premium />} />
+          <Route path="/vhod" element={<Login />} />
+          <Route path="/registracia" element={<Signup />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          {/* Hub / profile / settings / tournaments — all visual-complete; DB-wired in later phases. */}
+          <Route path="/tablo" element={<Tablo />} />
+          <Route path="/profil/:username" element={<Profile />} />
+          <Route path="/nastroyki" element={<Settings />} />
+          <Route path="/turniri" element={<Tournaments />} />
+          <Route path="/turniri/:id" element={<TournamentDetail />} />
+          {/* Single remaining stub — /staya/nova (room-creation form) is part of Phase B. */}
+          <Route path="/staya/nova" element={<ComingSoon titleKey="tablo.newRoom" />} />
           {/* Catch-all 404 — any unknown URL ends up on the salon error page. */}
           <Route path="*" element={<NotFoundScreen />} />
         </Routes>

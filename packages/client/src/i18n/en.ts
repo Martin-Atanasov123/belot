@@ -356,4 +356,15 @@ export const en: Record<MessageKey, string> = {
   'common.invalidEmail': 'Invalid email',
   'common.passwordShort':'Password must be at least 8 characters',
   'common.passwordMismatch':'Passwords do not match',
+  'common.loading':      'Loading…',
+  'common.you':          'You',
+
+  'lb.games':            'Games',
+  'lb.notFound':         'No such player',
+
+  'profile.notFound':    'Profile not found',
+  'profile.notFoundHint':'This player has no registered profile. Check the leaderboard or head back to the salon.',
+  'profile.member':      'In the salon since',
+  'profile.viewProfile': 'View profile',
+  'profile.opponents':   'Opponents',
 }

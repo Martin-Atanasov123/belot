@@ -324,6 +324,21 @@ function RadioGroup({
 // ── Gated panel — for notif / account tabs (need auth) ─────────────
 function GatedPanel() {
   const t = useT()
+  const session = useAuth((s) => s.session)
+  const status = useAuth((s) => s.status)
+
+  // While the auth state is resolving, render nothing.
+  if (status === 'loading') return null
+
+  // Signed-in users see a "coming soon" placeholder instead of the signup CTA.
+  if (session) {
+    return (
+      <div className="text-center py-10">
+        <div className="font-display italic text-cream/55">{t('common.coming')}</div>
+      </div>
+    )
+  }
+
   return (
     <div className="text-center py-10">
       <div className="font-display italic text-cream/55 mb-4">{t('settings.signUpToEnable')}</div>

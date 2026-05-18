@@ -355,6 +355,19 @@ export const bg = {
   'common.invalidEmail': 'Невалиден имейл',
   'common.passwordShort':'Паролата трябва да е поне 8 символа',
   'common.passwordMismatch':'Паролите не съвпадат',
+  'common.loading':      'Зарежда се…',
+  'common.you':          'Ти',
+
+  // Leaderboard extras
+  'lb.games':            'Игри',
+  'lb.notFound':         'Няма такъв играч',
+
+  // Profile extras
+  'profile.notFound':    'Профилът не е намерен',
+  'profile.notFoundHint':'Този играч няма регистриран профил. Виж кои са в класацията или се върни в салона.',
+  'profile.member':      'В салона от',
+  'profile.viewProfile': 'Виж профила',
+  'profile.opponents':   'Противници',
 } as const
 
 export type MessageKey = keyof typeof bg

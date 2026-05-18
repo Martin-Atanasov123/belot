@@ -1,17 +1,42 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { PublicNav } from '../components/PublicNav.js'
 import { Flourish, Monogram } from '../components/Ornaments.js'
 import { useT } from '../i18n/index.js'
-
-type Tab = 'weekly' | 'monthly' | 'all'
+import { useAuth } from '../lib/auth.js'
+import { fetchLeaderboard, type LeaderboardRow, type LeaderboardScope } from '../lib/stats.js'
 
 // Leaderboard page — per spec §4 КЛАСАЦИЯ.
 // Tier A (atmospheric). Brass underline on active tab, no background highlight.
-// Numbers in JetBrains Mono. Currently shows empty-state until DB is wired.
+// Numbers in JetBrains Mono. Wired to Supabase via `lib/stats.ts`.
 export function Leaderboard() {
   const t = useT()
-  const [tab, setTab] = useState<Tab>('weekly')
+  const profile = useAuth((s) => s.profile)
+  const [scope, setScope] = useState<LeaderboardScope>('weekly')
+  const [rows, setRows] = useState<LeaderboardRow[] | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    setRows(null)
+    void fetchLeaderboard(scope).then((data) => {
+      if (cancelled) return
+      setRows(data)
+      setLoading(false)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [scope])
+
+  const myRow = useMemo(() => {
+    if (!profile || !rows) return null
+    const idx = rows.findIndex((r) => r.player_id === profile.id)
+    if (idx === -1) return null
+    return { row: rows[idx]!, rank: idx + 1 }
+  }, [rows, profile])
 
   return (
     <div className="min-h-screen bg-ink relative">
@@ -37,24 +62,103 @@ export function Leaderboard() {
 
         {/* Tabs — brass underline only on active, per spec */}
         <div className="flex items-center justify-center gap-1 mb-8">
-          <TabBtn active={tab === 'weekly'} onClick={() => setTab('weekly')}>
+          <TabBtn active={scope === 'weekly'} onClick={() => setScope('weekly')}>
             {t('lb.tabWeekly')}
           </TabBtn>
-          <TabBtn active={tab === 'monthly'} onClick={() => setTab('monthly')}>
+          <TabBtn active={scope === 'monthly'} onClick={() => setScope('monthly')}>
             {t('lb.tabMonthly')}
           </TabBtn>
-          <TabBtn active={tab === 'all'} onClick={() => setTab('all')}>
+          <TabBtn active={scope === 'all'} onClick={() => setScope('all')}>
             {t('lb.tabAllTime')}
           </TabBtn>
         </div>
 
-        {/* Empty state — leaderboard backend not wired yet */}
-        <div className="plate p-10 text-center">
-          <div className="font-display italic text-cream/70 text-lg mb-2">{t('lb.empty')}</div>
-          <div className="font-mono text-[10px] tracking-widest uppercase text-ash mt-4">
-            {t('common.coming')}
+        {loading || rows === null ? (
+          <div className="plate p-10 text-center">
+            <div className="font-display italic text-cream/60">{t('common.loading')}</div>
           </div>
-        </div>
+        ) : rows.length === 0 ? (
+          <div className="plate p-10 text-center">
+            <div className="font-display italic text-cream/70 text-lg mb-2">{t('lb.empty')}</div>
+          </div>
+        ) : (
+          <>
+            <motion.div
+              key={scope}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className="plate overflow-hidden"
+            >
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-brass/10">
+                    <th className="text-left px-4 py-3 font-mono text-[10px] tracking-[0.22em] uppercase text-brass-hi w-12">
+                      {t('lb.rank')}
+                    </th>
+                    <th className="text-left px-4 py-3 font-mono text-[10px] tracking-[0.22em] uppercase text-brass-hi">
+                      {t('lb.player')}
+                    </th>
+                    <th className="text-right px-4 py-3 font-mono text-[10px] tracking-[0.22em] uppercase text-brass-hi">
+                      {t('lb.games')}
+                    </th>
+                    <th className="text-right px-4 py-3 font-mono text-[10px] tracking-[0.22em] uppercase text-brass-hi">
+                      {t('lb.wins')}
+                    </th>
+                    <th className="text-right px-4 py-3 font-mono text-[10px] tracking-[0.22em] uppercase text-brass-hi">
+                      {t('lb.winPct')}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r, i) => {
+                    const isMe = profile?.id === r.player_id
+                    return (
+                      <tr
+                        key={r.player_id}
+                        className={`border-t border-brass/10 transition ${
+                          isMe ? 'bg-brass/[0.08]' : 'hover:bg-cream/[0.03]'
+                        }`}
+                      >
+                        <td className="px-4 py-3 font-mono text-brass-hi text-sm">
+                          {i + 1}
+                        </td>
+                        <td className="px-4 py-3">
+                          <Link
+                            to={`/profil/${encodeURIComponent(r.username)}`}
+                            className="font-display italic text-cream hover:text-brass-hi transition"
+                          >
+                            {r.username}
+                          </Link>
+                          {isMe && (
+                            <span className="ml-2 font-mono text-[9px] tracking-[0.22em] uppercase px-1.5 py-0.5 bg-brass/15 border border-brass/40 text-brass-hi rounded">
+                              {t('common.you')}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono text-cream/75">
+                          {r.games_played}
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono text-cream">
+                          {r.games_won}
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono text-brass-hi">
+                          {r.win_pct}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </motion.div>
+
+            {myRow && (
+              <div className="mt-4 text-center font-mono text-[11px] tracking-[0.22em] uppercase text-ash">
+                {t('lb.yourRank')}: <span className="text-brass-hi">#{myRow.rank}</span>
+              </div>
+            )}
+          </>
+        )}
       </main>
     </div>
   )

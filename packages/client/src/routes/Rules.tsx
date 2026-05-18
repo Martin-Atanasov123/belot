@@ -66,8 +66,10 @@ export function Rules() {
   }
 
   return (
-    <div className="min-h-screen bg-ink relative">
-      {/* Per spec §2: NO film grain on this page. The plain ink background reads cleanly. */}
+    <div className="min-h-screen bg-racing relative">
+      {/* Soft felt vignette — readability stays priority, but pure #0a0f0d felt empty. */}
+      <div className="pointer-events-none absolute inset-0 bg-felt-noise opacity-50" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-brass/[0.06] to-transparent" />
       <PublicNav />
 
       <main className="relative z-10 pt-20 sm:pt-24 pb-12 px-4 sm:px-6 max-w-6xl mx-auto">

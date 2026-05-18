@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { PublicNav } from '../components/PublicNav.js'
@@ -7,6 +7,13 @@ import { createRoom } from '../lib/api.js'
 import { getNickname, getPlayerIdFor } from '../lib/identity.js'
 import { useAuth } from '../lib/auth.js'
 import { useT } from '../i18n/index.js'
+import {
+  computeStats,
+  fetchProfileMatches,
+  playerTeam,
+  type MatchRow,
+  type ProfileStats,
+} from '../lib/stats.js'
 
 // Lobby hub (Табло) — per design spec §8. Main authenticated hub.
 // Currently runs in "guest mode" — uses the local nickname (no real auth yet).
@@ -17,12 +24,33 @@ import { useT } from '../i18n/index.js'
 export function Tablo() {
   const t = useT()
   const nav = useNavigate()
+  const session = useAuth((s) => s.session)
   const profile = useAuth((s) => s.profile)
   const user = useAuth((s) => s.user)
   // Signed-in users keep their profile username; guests fall back to localStorage.
   const nick = (profile?.username ?? user?.email?.split('@')[0] ?? getNickname()) || 'Гост'
   const [busy, setBusy] = useState(false)
   const [joinCode, setJoinCode] = useState('')
+  const [stats, setStats] = useState<ProfileStats | null>(null)
+  const [recent, setRecent] = useState<MatchRow[]>([])
+
+  // Pull the signed-in user's recent matches + aggregate stats for the sidebar.
+  useEffect(() => {
+    if (!user?.id) {
+      setStats(null)
+      setRecent([])
+      return
+    }
+    let cancelled = false
+    void fetchProfileMatches(user.id, 20).then((ms) => {
+      if (cancelled) return
+      setRecent(ms)
+      setStats(computeStats(user.id, ms))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [user?.id])
 
   const onCreate = async () => {
     setBusy(true)
@@ -114,9 +142,46 @@ export function Tablo() {
 
             <div className="mt-8">
               <div className="eyebrow mb-3">{t('tablo.recentGames')}</div>
-              <div className="text-center py-6 font-display italic text-cream/55 text-sm">
-                {t('tablo.recentEmpty')}
-              </div>
+              {recent.length === 0 ? (
+                <div className="text-center py-6 font-display italic text-cream/55 text-sm">
+                  {t('tablo.recentEmpty')}
+                </div>
+              ) : (
+                <ul className="divide-y divide-brass/10">
+                  {recent.slice(0, 5).map((m) => {
+                    const team = user?.id ? playerTeam(m, user.id) : null
+                    if (!team) return null
+                    const won = team === m.winner_team
+                    const my = team === 'NS' ? m.score_ns : m.score_ew
+                    const opp = team === 'NS' ? m.score_ew : m.score_ns
+                    const oppNames =
+                      team === 'NS'
+                        ? [m.seat_e_name, m.seat_w_name].filter(Boolean) as string[]
+                        : [m.seat_n_name, m.seat_s_name].filter(Boolean) as string[]
+                    return (
+                      <li key={m.id} className="py-3 flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div
+                            className={`font-display italic text-sm ${
+                              won ? 'text-brass-hi' : 'text-cream/75'
+                            }`}
+                          >
+                            {won ? t('victory.title') : t('victory.defeatTitle')}
+                          </div>
+                          <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-ash mt-0.5 truncate">
+                            {oppNames.join(' · ') || '—'}
+                          </div>
+                        </div>
+                        <div className="font-mono text-sm shrink-0">
+                          <span className={won ? 'text-brass-hi' : 'text-cream'}>{my}</span>
+                          <span className="text-ash mx-1">:</span>
+                          <span className={won ? 'text-cream/70' : 'text-ember-hi'}>{opp}</span>
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
             </div>
           </motion.section>
 
@@ -128,13 +193,28 @@ export function Tablo() {
             className="plate p-5 sm:p-6"
           >
             <div className="eyebrow mb-4">{t('tablo.statsTitle')}</div>
-            <StatRow label={t('tablo.statsWinsWeek')} value="—" />
-            <StatRow label={t('tablo.statsStreak')} value="—" />
-            <StatRow label={t('tablo.statsTotal')} value="—" />
+            <StatRow
+              label={t('tablo.statsWinsWeek')}
+              value={stats ? String(stats.winsLast7Days) : '—'}
+            />
+            <StatRow
+              label={t('tablo.statsStreak')}
+              value={stats && stats.streak !== 0 ? fmtStreak(stats.streak) : '—'}
+            />
+            <StatRow
+              label={t('tablo.statsTotal')}
+              value={stats ? String(stats.totalGames) : '—'}
+            />
             <div className="mt-6 pt-4 border-t border-brass/15 text-center">
-              <Link to="/registracia" className="font-mono text-[10px] tracking-[0.22em] uppercase text-brass-hi hover:underline">
-                {t('nav.signup')} →
-              </Link>
+              {session ? (
+                <Link to={`/profil/${encodeURIComponent(profile?.username ?? user?.email?.split('@')[0] ?? '')}`} className="font-mono text-[10px] tracking-[0.22em] uppercase text-brass-hi hover:underline">
+                  {t('nav.profile')} →
+                </Link>
+              ) : (
+                <Link to="/registracia" className="font-mono text-[10px] tracking-[0.22em] uppercase text-brass-hi hover:underline">
+                  {t('nav.signup')} →
+                </Link>
+              )}
             </div>
           </motion.aside>
         </div>
@@ -150,4 +230,10 @@ function StatRow({ label, value }: { label: string; value: string }) {
       <span className="font-mono text-brass-hi text-lg">{value}</span>
     </div>
   )
+}
+
+function fmtStreak(streak: number): string {
+  if (streak > 0) return `W${streak}`
+  if (streak < 0) return `L${Math.abs(streak)}`
+  return '—'
 }

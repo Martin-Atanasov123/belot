@@ -1,5 +1,5 @@
 import 'dotenv/config'
-import Fastify from 'fastify'
+import Fastify, { type FastifyRequest } from 'fastify'
 import cors from '@fastify/cors'
 import { Server as SocketIOServer } from 'socket.io'
 import { customAlphabet } from 'nanoid'
@@ -40,19 +40,95 @@ import {
 
 const PORT = Number(process.env.PORT ?? 3001)
 const HOST = process.env.HOST ?? '0.0.0.0'
-const CORS_ORIGIN = [
-  ...(process.env.CORS_ORIGIN ?? '*').split(',').map((s) => s.trim()),
-  // Always allow local dev origins so the production server can be tested from localhost.
+
+// ── CORS origins ─────────────────────────────────────────────────────────────
+// Wildcards are NEVER allowed when credentials:true — browsers reject them.
+// Production origins must be listed in CORS_ORIGIN env var (comma-separated).
+const DEV_ORIGINS = [
   'http://localhost:5173',
   'http://localhost:5174',
   'http://localhost:3000',
 ]
+
+function buildCorsOrigins(): string[] {
+  const raw = process.env.CORS_ORIGIN
+  if (!raw) return DEV_ORIGINS
+  const listed = raw.split(',').map((s) => s.trim()).filter(Boolean)
+  if (listed.includes('*')) {
+    console.warn(
+      '[cors] CORS_ORIGIN contains wildcard — credentials:true requires explicit origins. ' +
+      'Falling back to localhost-only. Set CORS_ORIGIN to your production domain.',
+    )
+    return DEV_ORIGINS
+  }
+  return [...new Set([...listed, ...DEV_ORIGINS])]
+}
+
+const CORS_ORIGINS = buildCorsOrigins()
+
+// ── Nickname sanitization ────────────────────────────────────────────────────
+// Strip HTML-special chars and C0 control characters before the nickname is
+// stored in room state and broadcast to all connected clients.
+function sanitizeNickname(raw: string): string {
+  return raw
+    .replace(/[<>&"'/]/g, '')          // HTML injection vectors
+    .replace(/[\x00-\x1F\x7F]/g, '')  // C0 control chars + DEL
+    .trim()
+    .slice(0, 20)
+}
+
+// ── IP-based rate limiters ───────────────────────────────────────────────────
+type IpBucket = { count: number; resetAt: number }
+
+function makeIpLimiter(maxPerWindow: number, windowMs: number) {
+  const buckets = new Map<string, IpBucket>()
+  let lastPrune = 0
+
+  return function allow(ip: string): boolean {
+    const now = Date.now()
+    // Lazy prune every 5 min to prevent unbounded growth.
+    if (now - lastPrune > 5 * 60_000) {
+      lastPrune = now
+      for (const [k, b] of buckets) if (now >= b.resetAt) buckets.delete(k)
+    }
+    let b = buckets.get(ip)
+    if (!b || now >= b.resetAt) {
+      b = { count: 0, resetAt: now + windowMs }
+    }
+    if (b.count >= maxPerWindow) return false
+    b.count++
+    buckets.set(ip, b)
+    return true
+  }
+}
+
+const allowRoomCreate = makeIpLimiter(10, 10 * 60_000)   // 10 rooms / 10 min
+const allowRoomLookup = makeIpLimiter(60, 60_000)         // 60 lookups / min
+
+// ── Per-socket sliding-window rate limiter ───────────────────────────────────
+function checkRateLimit(timestamps: number[], maxCalls: number, windowMs: number): boolean {
+  const now = Date.now()
+  const cutoff = now - windowMs
+  while (timestamps.length > 0 && timestamps[0]! < cutoff) timestamps.shift()
+  if (timestamps.length >= maxCalls) return false
+  timestamps.push(now)
+  return true
+}
+
+// ── JWT extraction from HTTP request header ──────────────────────────────────
+async function getAuthedUserFromRequest(req: FastifyRequest): Promise<AuthedUser | null> {
+  const auth = req.headers.authorization
+  if (typeof auth !== 'string' || !auth.startsWith('Bearer ')) return null
+  return verifyAccessToken(auth.slice(7))
+}
 
 const roomCode = customAlphabet('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', 6)
 
 const rooms = new Map<string, Room>()
 
 const app = Fastify({
+  trustProxy: true,     // respect X-Forwarded-For from Render/Netlify reverse proxy
+  bodyLimit: 64 * 1024, // 64 KB — plenty for our small JSON bodies
   logger:
     process.env.NODE_ENV === 'production'
       ? true
@@ -60,25 +136,36 @@ const app = Fastify({
 })
 
 await app.register(cors, {
-  origin: CORS_ORIGIN.includes('*') ? true : CORS_ORIGIN,
+  origin: CORS_ORIGINS, // explicit list — never `true` with credentials:true
   credentials: true,
 })
 
-app.get('/health', async () => ({ ok: true, rooms: rooms.size }))
+// Minimal health check — no internal state exposed.
+app.get('/health', async () => ({ ok: true }))
 
-const CreateRoomBody = z.object({
-  hostId: z.string().min(1),
-})
+const CreateRoomBody = z.object({ hostId: z.string().min(1) })
 app.post('/rooms', async (req, reply) => {
+  if (!allowRoomCreate(req.ip)) {
+    return reply.code(429).send({ error: 'too many rooms — try again later' })
+  }
   const body = CreateRoomBody.safeParse(req.body)
   if (!body.success) return reply.code(400).send({ error: 'invalid body' })
+
+  // Verify JWT from Authorization header. If valid, use the confirmed user ID
+  // as hostId — ignores the client body to prevent identity spoofing.
+  const authedUser = await getAuthedUserFromRequest(req)
+  const hostId = authedUser?.id ?? body.data.hostId
+
   const code = roomCode()
-  const room = createRoom(code, body.data.hostId)
+  const room = createRoom(code, hostId)
   rooms.set(code, room)
   return { code, state: publicState(room) }
 })
 
 app.get('/rooms/:code', async (req, reply) => {
+  if (!allowRoomLookup(req.ip)) {
+    return reply.code(429).send({ error: 'too many lookups' })
+  }
   const params = z.object({ code: z.string() }).parse(req.params)
   const room = rooms.get(params.code.toUpperCase())
   if (!room) return reply.code(404).send({ error: 'room not found' })
@@ -87,9 +174,13 @@ app.get('/rooms/:code', async (req, reply) => {
 
 const server = app.server
 const io = new SocketIOServer(server, {
-  cors: {
-    origin: CORS_ORIGIN.includes('*') ? true : CORS_ORIGIN,
-    credentials: true,
+  cors: { origin: CORS_ORIGINS, credentials: true },
+  // Compress large payloads (PlayerView with hand history can exceed 2 KB).
+  // level 1 = fastest compression; threshold 1 KB avoids overhead on tiny acks.
+  perMessageDeflate: {
+    threshold: 1024,
+    zlibDeflateOptions: { level: 1 },
+    zlibInflateOptions: { chunkSize: 10 * 1024 },
   },
 })
 
@@ -109,9 +200,9 @@ io.use(async (socket, next) => {
 })
 
 const TURN_TIMER_MS = 30_000
-const ROOM_EMPTY_GRACE_MS = 60_000 // delete a room 60s after all sockets disconnect
-const BOT_TURN_DELAY_MS = 750     // pacing for bot moves so it feels human
-const TRICK_LINGER_MS = 1500      // hold a completed trick on the table this long before collecting
+const ROOM_EMPTY_GRACE_MS = 60_000
+const BOT_TURN_DELAY_MS = 750
+const TRICK_LINGER_MS = 1500
 
 function cancelEmptyTimer(room: Room) {
   if (room.emptyTimer) {
@@ -124,7 +215,10 @@ function scheduleEmptyTimer(room: Room) {
   if (room.emptyTimer) return
   room.emptyTimer = setTimeout(() => {
     if (!noOccupantsConnected(room)) return
+    // Clear ALL timers to prevent leaks when the room is deleted.
     clearTimer(room)
+    clearBotTimer(room)
+    clearTrickResolveTimer(room)
     rooms.delete(room.code)
     app.log.info({ code: room.code }, 'deleted empty room')
   }, ROOM_EMPTY_GRACE_MS)
@@ -142,13 +236,12 @@ function broadcastViews(room: Room) {
     const view: PlayerView = snapshotForSeat(room, seat)!
     io.to(`player:${occ.playerId}`).emit('game:view', view)
   }
-  // Spectators get the public projection — never any seat's hand.
+  // Spectators share one public projection — broadcast to the spectator channel
+  // rather than looping through each spectator individually (O(1) instead of O(n)).
   if (room.spectators.size > 0) {
     const view = snapshotForSpectator(room)
     if (view) {
-      for (const sp of room.spectators.values()) {
-        io.to(`player:${sp.playerId}`).emit('game:view', view)
-      }
+      io.to(`spectators:${room.code}`).emit('game:view', view)
     }
   }
 }
@@ -157,7 +250,6 @@ function armTurnTimer(room: Room) {
   clearTimer(room)
   if (!room.snapshot) return
   if (room.snapshot.phase !== 'BIDDING' && room.snapshot.phase !== 'PLAYING') return
-  // Bot seats are handled by maybeScheduleBotTurn; no human turn timer for them.
   if (isBotsTurn(room)) return
   room.turnTimer = setTimeout(() => {
     const pick = autoPlay(room)
@@ -169,7 +261,6 @@ function armTurnTimer(room: Room) {
   }, TURN_TIMER_MS)
 }
 
-// Schedule a bot move when it's their turn. Re-arms on each transition.
 function maybeScheduleBotTurn(room: Room) {
   clearBotTimer(room)
   if (!room.snapshot) return
@@ -189,13 +280,10 @@ function maybeScheduleBotTurn(room: Room) {
   }, BOT_TURN_DELAY_MS)
 }
 
-// Common post-action housekeeping: broadcast, then arm whichever timer is next.
 function afterTransition(room: Room) {
   broadcastRoomState(room)
   broadcastViews(room)
 
-  // A complete trick is sitting on the table — let humans see the last card,
-  // then resolve and continue.
   if (trickIsPending(room)) {
     clearTimer(room)
     clearBotTimer(room)
@@ -220,7 +308,43 @@ io.on('connection', (socket) => {
   let joinedRoom: string | null = null
   let playerId: string | null = null
 
+  // Per-socket sliding-window rate-limiter state.
+  const rl = {
+    gameAction:   [] as number[], // max 20 / 2 s
+    joinSpectate: [] as number[], // max 5  / 10 s  (shared: join + spectate + auth:refresh)
+  }
+
+  // Authenticated sockets must use their JWT user ID as playerId.
+  // Captured at connection time and re-validated on auth:refresh.
+  const authedUser = (socket.data as { user?: AuthedUser | null }).user
+
+  // ── auth:refresh ────────────────────────────────────────────────────────────
+  // Clients should emit this whenever Supabase silently refreshes their token
+  // (typically every hour). The server updates its socket-level identity cache.
+  socket.on('auth:refresh', async (raw, cb: (resp: unknown) => void) => {
+    if (!checkRateLimit(rl.joinSpectate, 5, 10_000)) {
+      return cb({ ok: false, error: 'too fast' })
+    }
+    const parsed = z.object({ token: z.string().min(1) }).safeParse(raw)
+    if (!parsed.success) return cb({ ok: false, error: 'invalid payload' })
+
+    const user = await verifyAccessToken(parsed.data.token)
+    if (!user) return cb({ ok: false, error: 'invalid or expired token' })
+
+    // Guard: an authenticated socket cannot switch to a different user identity.
+    const current = (socket.data as { user?: AuthedUser | null }).user
+    if (current && current.id !== user.id) {
+      return cb({ ok: false, error: 'identity mismatch' })
+    }
+    ;(socket.data as { user?: AuthedUser | null }).user = user
+    cb({ ok: true })
+  })
+
+  // ── room:join ────────────────────────────────────────────────────────────────
   socket.on('room:join', (raw, cb: (resp: unknown) => void) => {
+    if (!checkRateLimit(rl.joinSpectate, 5, 10_000)) {
+      return cb({ ok: false, error: 'too many join attempts' })
+    }
     const parsed = z
       .object({
         code: z.string(),
@@ -231,11 +355,14 @@ io.on('connection', (socket) => {
       .safeParse(raw)
     if (!parsed.success) return cb({ ok: false, error: 'invalid payload' })
 
+    // Authenticated users: always use verified JWT uid — prevents seat takeover.
+    const resolvedPlayerId = authedUser?.id ?? parsed.data.playerId
+    const safeNickname = sanitizeNickname(parsed.data.nickname) || 'Player'
+
     const room = rooms.get(parsed.data.code.toUpperCase())
     if (!room) return cb({ ok: false, error: 'room not found' })
 
-    // Reconnect path: same playerId already seated.
-    const existingSeat = findSeatByPlayerId(room, parsed.data.playerId)
+    const existingSeat = findSeatByPlayerId(room, resolvedPlayerId)
     let seat: Seat | null = existingSeat
     if (seat === null) {
       const requested = parsed.data.seat
@@ -243,14 +370,14 @@ io.on('connection', (socket) => {
         ? (requested as Seat)
         : findFreeSeat(room)
       if (seat === null) return cb({ ok: false, error: 'room full' })
-      const take = takeSeat(room, seat, parsed.data.playerId, parsed.data.nickname)
+      const take = takeSeat(room, seat, resolvedPlayerId, safeNickname)
       if (!take.ok) return cb({ ok: false, error: take.error })
     } else {
-      setConnected(room, parsed.data.playerId, true)
+      setConnected(room, resolvedPlayerId, true)
     }
 
     joinedRoom = room.code
-    playerId = parsed.data.playerId
+    playerId = resolvedPlayerId
     socket.join(`room:${room.code}`)
     socket.join(`player:${playerId}`)
     cancelEmptyTimer(room)
@@ -260,6 +387,7 @@ io.on('connection', (socket) => {
     if (room.snapshot) broadcastViews(room)
   })
 
+  // ── room:start ───────────────────────────────────────────────────────────────
   socket.on('room:start', (_raw, cb: (resp: unknown) => void) => {
     if (!joinedRoom || !playerId) return cb({ ok: false, error: 'not in a room' })
     const room = rooms.get(joinedRoom)
@@ -274,8 +402,7 @@ io.on('connection', (socket) => {
     afterTransition(room)
   })
 
-  // ── Reactions / emotes ────────────────────────────────────────────
-  // Six allow-listed glyphs. Anything else is rejected — no free-text chat.
+  // ── room:react ───────────────────────────────────────────────────────────────
   const ALLOWED_REACTIONS = ['👏', '🤔', '😂', '🔥', '🙏', '😴'] as const
   socket.on('room:react', (raw, cb: (resp: unknown) => void) => {
     if (!joinedRoom || !playerId) return cb({ ok: false, error: 'not in a room' })
@@ -288,7 +415,6 @@ io.on('connection', (socket) => {
       .safeParse(raw ?? {})
     if (!parsed.success) return cb({ ok: false, error: 'invalid emote' })
 
-    // Rate-limit: max one reaction per 1500ms per seat.
     const now = Date.now()
     const occ = room.seats[seat]!
     if (occ.lastReactionAt && now - occ.lastReactionAt < 1500) {
@@ -300,7 +426,11 @@ io.on('connection', (socket) => {
     io.to(`room:${room.code}`).emit('room:reaction', { seat, emote: parsed.data.emote, ts: now })
   })
 
+  // ── room:spectate ────────────────────────────────────────────────────────────
   socket.on('room:spectate', (raw, cb: (resp: unknown) => void) => {
+    if (!checkRateLimit(rl.joinSpectate, 5, 10_000)) {
+      return cb({ ok: false, error: 'too many join attempts' })
+    }
     const parsed = z
       .object({
         code: z.string(),
@@ -310,29 +440,33 @@ io.on('connection', (socket) => {
       .safeParse(raw)
     if (!parsed.success) return cb({ ok: false, error: 'invalid payload' })
 
+    const resolvedPlayerId = authedUser?.id ?? parsed.data.playerId
+    const safeNickname = sanitizeNickname(parsed.data.nickname) || 'Spectator'
+
     const room = rooms.get(parsed.data.code.toUpperCase())
     if (!room) return cb({ ok: false, error: 'room not found' })
 
-    // Can't spectate a seat you also occupy.
-    if (findSeatByPlayerId(room, parsed.data.playerId) !== null) {
+    if (findSeatByPlayerId(room, resolvedPlayerId) !== null) {
       return cb({ ok: false, error: 'already seated' })
     }
-    addSpectator(room, parsed.data.playerId, parsed.data.nickname)
+    addSpectator(room, resolvedPlayerId, safeNickname)
     joinedRoom = room.code
-    playerId = parsed.data.playerId
+    playerId = resolvedPlayerId
     socket.join(`room:${room.code}`)
     socket.join(`player:${playerId}`)
+    // Join the shared spectator broadcast channel for efficient game view delivery.
+    socket.join(`spectators:${room.code}`)
     cancelEmptyTimer(room)
 
     cb({ ok: true, state: publicState(room) })
     broadcastRoomState(room)
     if (room.snapshot) {
-      // Send this spectator the public view immediately.
       const view = snapshotForSpectator(room)
       if (view) socket.emit('game:view', view)
     }
   })
 
+  // ── room:setSettings ─────────────────────────────────────────────────────────
   socket.on('room:setSettings', (raw, cb: (resp: unknown) => void) => {
     if (!joinedRoom || !playerId) return cb({ ok: false, error: 'not in a room' })
     const room = rooms.get(joinedRoom)
@@ -347,7 +481,6 @@ io.on('connection', (socket) => {
       })
       .safeParse(raw ?? {})
     if (!parsed.success) return cb({ ok: false, error: 'invalid payload' })
-    // Apply only keys the host actually set (avoid overwriting with undefined).
     const next = { ...room.settings }
     if (parsed.data.capotDoubledByContra !== undefined) next.capotDoubledByContra = parsed.data.capotDoubledByContra
     if (parsed.data.enableNT !== undefined) next.enableNT = parsed.data.enableNT
@@ -357,6 +490,7 @@ io.on('connection', (socket) => {
     broadcastRoomState(room)
   })
 
+  // ── room:addBot ──────────────────────────────────────────────────────────────
   socket.on('room:addBot', (raw, cb: (resp: unknown) => void) => {
     if (!joinedRoom || !playerId) return cb({ ok: false, error: 'not in a room' })
     const room = rooms.get(joinedRoom)
@@ -376,14 +510,17 @@ io.on('connection', (socket) => {
     if (seat === null) return cb({ ok: false, error: 'no free seat' })
     const botCount =
       ([0, 1, 2, 3] as Seat[]).filter((s) => room.seats[s]?.isBot).length + 1
-    const name = `Bot ${botCount}`
-    const result = addBot(room, seat, name)
+    const result = addBot(room, seat, `Bot ${botCount}`)
     if (!result.ok) return cb({ ok: false, error: result.error })
     cb({ ok: true, seat })
     broadcastRoomState(room)
   })
 
+  // ── game:action ──────────────────────────────────────────────────────────────
   socket.on('game:action', (raw, cb: (resp: unknown) => void) => {
+    if (!checkRateLimit(rl.gameAction, 20, 2_000)) {
+      return cb({ ok: false, error: 'too fast' })
+    }
     if (!joinedRoom || !playerId) return cb({ ok: false, error: 'not in a room' })
     const room = rooms.get(joinedRoom)
     if (!room) return cb({ ok: false, error: 'room gone' })
@@ -395,6 +532,7 @@ io.on('connection', (socket) => {
     afterTransition(room)
   })
 
+  // ── disconnect ───────────────────────────────────────────────────────────────
   socket.on('disconnect', () => {
     if (!joinedRoom || !playerId) return
     const room = rooms.get(joinedRoom)

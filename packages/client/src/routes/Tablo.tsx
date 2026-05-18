@@ -58,7 +58,9 @@ export function Tablo() {
       // Authed users get a stable playerId derived from their auth uid;
       // guests get the localStorage-cached uuid keyed by nickname.
       const playerId = user?.id ?? getPlayerIdFor(nick)
-      const { code } = await createRoom(playerId)
+      // Pass the JWT so the server can verify the hostId rather than trusting the body.
+      const token = session?.access_token
+      const { code } = await createRoom(playerId, token)
       nav(`/r/${code}?host=1`)
     } finally {
       setBusy(false)

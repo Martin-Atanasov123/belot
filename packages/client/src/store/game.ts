@@ -76,6 +76,17 @@ export const useGame = create<State>((set, get) => ({
       const id = Date.now() + Math.random()
       set((s) => ({ reactions: [...s.reactions, { ...r, id }] }))
     })
+
+    // When Supabase silently refreshes the JWT (typically every hour), push the
+    // new token to the server so the socket-level identity cache stays current.
+    // Without this, an authenticated socket's server-side user reference becomes
+    // stale after the access token expires (~1 h by default in Supabase).
+    supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'TOKEN_REFRESHED' && session?.access_token && sock.connected) {
+        sock.emit('auth:refresh', { token: session.access_token })
+      }
+    })
+
     set({ socket: sock })
     return sock
   },

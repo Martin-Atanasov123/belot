@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto'
 import {
   advanceHand,
   apply,
@@ -136,7 +137,7 @@ export function addBot(
 ): { ok: true; playerId: string } | { ok: false; error: string } {
   if (room.snapshot) return { ok: false, error: 'game already in progress' }
   if (room.seats[seat]) return { ok: false, error: 'seat taken' }
-  const playerId = `bot-${room.code}-${seat}-${Math.random().toString(36).slice(2, 8)}`
+  const playerId = `bot-${room.code}-${seat}-${randomBytes(6).toString('hex')}`
   room.seats[seat] = { playerId, nickname, connected: true, isBot: true }
   return { ok: true, playerId }
 }
@@ -160,7 +161,7 @@ export function allSeatsFilled(room: Room): boolean {
 export function startGame(room: Room): { ok: true } | { ok: false; error: string } {
   if (!allSeatsFilled(room)) return { ok: false, error: 'not all seats filled' }
   if (room.snapshot) return { ok: false, error: 'already started' }
-  const seed = Math.floor(Math.random() * 2 ** 31)
+  const seed = randomBytes(4).readUInt32BE(0)
   room.snapshot = newMatch({ seed, settings: room.settings })
   return { ok: true }
 }

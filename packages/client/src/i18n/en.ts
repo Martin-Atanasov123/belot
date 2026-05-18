@@ -213,6 +213,11 @@ export const en: Record<MessageKey, string> = {
   'auth.weakPassword':   'Password is too weak.',
   'auth.networkErr':     'No connection. Please try again.',
   'auth.notConfigured':  'Authentication not configured. Play as guest.',
+  'auth.invalidEmail':   'Invalid email address.',
+  'auth.passwordHint':   'At least 8 characters.',
+  'auth.mustAcceptTerms':'You must accept the terms.',
+  'auth.signupSuccessHint':'Check your Spam folder if you don\'t see the email.',
+  'auth.emailNotConfirmed':'Please confirm your email before signing in.',
   'auth.welcome':        'Hello',
   'auth.logout':         'Sign out',
 

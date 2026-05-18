@@ -212,6 +212,11 @@ export const bg = {
   'auth.weakPassword':   'Паролата е твърде слаба.',
   'auth.networkErr':     'Няма връзка със сървъра. Опитай пак.',
   'auth.notConfigured':  'Авторизацията не е настроена. Играй като гост.',
+  'auth.invalidEmail':   'Невалиден имейл адрес.',
+  'auth.passwordHint':   'Минимум 8 символа.',
+  'auth.mustAcceptTerms':'Трябва да приемеш условията.',
+  'auth.signupSuccessHint':'Провери папката Spam, ако не виждаш имейла.',
+  'auth.emailNotConfirmed':'Потвърди имейла си преди да влезеш.',
   'auth.welcome':        'Здравей',
   'auth.logout':         'Изход',
 

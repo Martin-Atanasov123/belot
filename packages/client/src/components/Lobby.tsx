@@ -101,23 +101,43 @@ export function Lobby() {
           </div>
         </motion.div>
 
-        {/* SVG oval table with 4 seats */}
+        {/* Seats display — dual layout:
+            · SVG oval table on sm+ (preserves the visual spec §10)
+            · Vertical card list on mobile (proper 44px tap targets,
+              no off-screen "+ бот" buttons). */}
         <motion.div
           initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.1, duration: 0.6, ease: 'easeOut' }}
           className="w-full max-w-2xl"
         >
-          <OvalTable
-            seats={room.seats}
-            amHost={amHost}
-            onAddBot={(seat: SeatNum) => void addBot(seat)}
-            tWaiting={t('lobby.free')}
-            tBot={t('common.bot')}
-            tOnline={t('common.online')}
-            tOffline={t('common.offline')}
-            tAddBot={t('lobby.addBot')}
-          />
+          {/* Tablet+ */}
+          <div className="hidden sm:block">
+            <OvalTable
+              seats={room.seats}
+              amHost={amHost}
+              onAddBot={(seat: SeatNum) => void addBot(seat)}
+              tWaiting={t('lobby.free')}
+              tBot={t('common.bot')}
+              tOnline={t('common.online')}
+              tOffline={t('common.offline')}
+              tAddBot={t('lobby.addBot')}
+            />
+          </div>
+          {/* Mobile */}
+          <div className="sm:hidden">
+            <MobileSeatList
+              seats={room.seats}
+              amHost={amHost}
+              onAddBot={(seat: SeatNum) => void addBot(seat)}
+              tWaiting={t('lobby.free')}
+              tBot={t('common.bot')}
+              tOnline={t('common.online')}
+              tOffline={t('common.offline')}
+              tAddBot={t('lobby.addBot')}
+              tSeat={t('lobby.seat')}
+            />
+          </div>
         </motion.div>
 
         {/* Invite + filled counter */}
@@ -198,16 +218,19 @@ function OvalTable({
   tOffline: string
   tAddBot: string
 }) {
-  // viewBox coordinate space — 800×520 logical units. Tailwind sizes the wrapper.
-  const W = 800
-  const H = 520
+  // viewBox coordinate space — wider/taller than the felt so seat avatars,
+  // captions, and "+ бот" buttons (positioned outside the rim) never clip.
+  const W = 920
+  const H = 600
   const cx = W / 2
   const cy = H / 2
   const rx = 280 // ellipse horizontal radius
   const ry = 150 // ellipse vertical radius
 
   // Seat-position offsets (relative to center). Slightly outside the felt rim so
-  // avatars frame the table from the outside.
+  // avatars frame the table from the outside. With viewBox 920×600 and seats at
+  // ±360 horizontally / ±210 vertically, every seat (r=42) plus its 100px-wide
+  // "+ бот" button is comfortably inside the box.
   const seatXY: Record<Pos, { x: number; y: number }> = {
     N: { x: cx, y: cy - ry - 60 },
     S: { x: cx, y: cy + ry + 60 },
@@ -439,6 +462,105 @@ function Seat({
         </foreignObject>
       )}
     </g>
+  )
+}
+
+// ── Mobile seat list — vertical cards with proper 44px tap targets ─────
+// Used below the `sm` breakpoint where the SVG oval becomes too small to
+// interact with reliably (per spec §Mobile Rules: 44px min btn height).
+// Same data + handlers as OvalTable; just a different presentation.
+function MobileSeatList({
+  seats,
+  amHost,
+  onAddBot,
+  tWaiting,
+  tBot,
+  tOnline,
+  tOffline,
+  tAddBot,
+  tSeat,
+}: {
+  seats: Array<{ seat: SeatNum; nickname: string | null; connected: boolean; isBot: boolean }>
+  amHost: boolean
+  onAddBot: (seat: SeatNum) => void
+  tWaiting: string
+  tBot: string
+  tOnline: string
+  tOffline: string
+  tAddBot: string
+  tSeat: string
+}) {
+  return (
+    <ul className="flex flex-col gap-2">
+      {seats.map((s, i) => {
+        const occupied = s.nickname !== null
+        const initial = (s.nickname?.trim()[0] ?? '?').toUpperCase()
+        return (
+          <li
+            key={s.seat}
+            className={`plate flex items-center gap-3 px-3 py-2.5 ${
+              occupied ? '' : 'opacity-90'
+            }`}
+          >
+            {/* Avatar circle — same styling as the SVG version (mini) */}
+            <div
+              aria-hidden
+              className={`shrink-0 w-12 h-12 rounded-full flex items-center justify-center font-display font-bold text-xl ${
+                occupied
+                  ? `${
+                      s.isBot
+                        ? 'text-brass-hi border-brass/70'
+                        : s.connected
+                          ? 'text-cream border-brass/90'
+                          : 'text-cream/70 border-ember/40'
+                    } border-2 bg-racing/60`
+                  : 'border border-dashed border-ash/40 text-ash/50 italic text-sm'
+              }`}
+            >
+              {occupied ? initial : '?'}
+            </div>
+
+            {/* Seat info: name + status */}
+            <div className="flex-1 min-w-0">
+              <div className="eyebrow text-[8px]">
+                {tSeat} {i + 1}
+              </div>
+              <div
+                className={`font-display italic text-base truncate ${
+                  occupied ? 'text-cream' : 'text-ash/70'
+                }`}
+              >
+                {occupied ? s.nickname : tWaiting}
+              </div>
+              {occupied && (
+                <div
+                  className={`font-mono text-[9px] tracking-[0.18em] uppercase mt-0.5 ${
+                    s.isBot
+                      ? 'text-brass-hi'
+                      : s.connected
+                        ? 'text-brass'
+                        : 'text-ember-hi'
+                  }`}
+                >
+                  {s.isBot ? tBot : s.connected ? tOnline : tOffline}
+                </div>
+              )}
+            </div>
+
+            {/* "+ бот" — host only, for empty seats. 44px min height per spec. */}
+            {!occupied && amHost && (
+              <button
+                onClick={() => onAddBot(s.seat)}
+                className="shrink-0 font-mono text-[10px] tracking-[0.18em] uppercase px-3 min-h-[44px] border border-brass/40 hover:border-brass-hi text-brass hover:text-brass-hi rounded transition"
+                title={tAddBot}
+              >
+                + {tAddBot}
+              </button>
+            )}
+          </li>
+        )
+      })}
+    </ul>
   )
 }
 

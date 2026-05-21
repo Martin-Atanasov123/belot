@@ -255,6 +255,8 @@ export const bg = {
   'tablo.statsWinsWeek': 'Победи (тази седмица)',
   'tablo.statsStreak':   'Серия',
   'tablo.statsTotal':    'Общо игри',
+  'tablo.inGame':        'В игра',
+  'tablo.spectate':      'Гледай',
 
   // Profile (spec §13)
   'profile.stats':       'Статистика',
@@ -353,6 +355,7 @@ export const bg = {
   'tour.playerWon':      'Аз спечелих',
   'tour.reportWin':      'Обяви победа',
   'tour.reportingWin':   'Записване…',
+  'tour.awaitingResult': 'Изчаква резултат',
   'tour.roundR1':        'R1',
   'tour.roundR16':       'R16',
   'tour.roundQF':        '1/4',
@@ -360,6 +363,15 @@ export const bg = {
   'tour.roundF':         'Финал',
   'tour.youAreIn':       'Ти си в този мач',
   'tour.invalidDates':   'Записът трябва да затваря преди старта',
+
+  // Matchmaking (Quick Play)
+  'mm.searching':        'Търсим противници…',
+  'mm.cancel':           'Отказ',
+  'mm.elapsed':          'Изминаха',
+  'mm.matched':          'Намерен мач!',
+  'mm.matchedWithBots':  'Мач с ботове',
+  'mm.joinNow':          'Влез',
+  'mm.error':            'Не успяхме да те запишем в опашката',
 
   // Победа екран (spec §12)
   'victory.title':       'Победа',

@@ -13,7 +13,6 @@ import {
   fetchTournamentMatches,
   isRegistered,
   registerForTournament,
-  reportMatchWinner,
   seedTournament,
   unregisterFromTournament,
   type TournamentMatchRow,
@@ -262,12 +261,6 @@ export function TournamentDetail() {
                 setError('Failed to create match room')
               }
             }}
-            onReportWin={async (m) => {
-              if (!user) return
-              const r = await reportMatchWinner(m.id, user.id)
-              if (!r.ok) setError(r.error)
-              else await reload()
-            }}
             t={t}
           />
         </motion.section>
@@ -367,14 +360,12 @@ function BracketView({
   size,
   myUserId,
   onMatchClick,
-  onReportWin,
   t,
 }: {
   matches: TournamentMatchRow[]
   size: BracketSize
   myUserId: string | null
   onMatchClick: (m: TournamentMatchRow) => void
-  onReportWin: (m: TournamentMatchRow) => void
   t: (k: MessageKey) => string
 }) {
   // Layout constants. We render columns left→right (R1 first → Final).
@@ -463,7 +454,6 @@ function BracketView({
               match={m}
               meInMatch={meInMatch}
               onClick={() => onMatchClick(m)}
-              onReportWin={() => onReportWin(m)}
               t={t}
             />
           )
@@ -474,7 +464,7 @@ function BracketView({
 }
 
 function MatchSlot({
-  x, y, w, h, match, meInMatch, onClick, onReportWin, t,
+  x, y, w, h, match, meInMatch, onClick, t,
 }: {
   x: number
   y: number
@@ -483,7 +473,6 @@ function MatchSlot({
   match: TournamentMatchRow
   meInMatch: boolean
   onClick: () => void
-  onReportWin: () => void
   t: (k: MessageKey) => string
 }) {
   const aWon = match.winner_id !== null && match.winner_id === match.player_a_id
@@ -521,12 +510,11 @@ function MatchSlot({
               </button>
             )}
             {match.status === 'active' && (
-              <button
-                onClick={onReportWin}
-                className="font-mono text-[9px] tracking-[0.18em] uppercase px-2 py-0.5 bg-emerald-500/10 border border-emerald-400/40 text-emerald-300 rounded hover:bg-emerald-500/20 transition"
-              >
-                ✓ {t('tour.reportWin')}
-              </button>
+              // Result is recorded automatically by the game server when the
+              // match finishes (audit SEC-002) — no manual winner reporting.
+              <span className="font-mono text-[9px] tracking-[0.18em] uppercase px-2 py-0.5 text-ash">
+                {t('tour.awaitingResult')}
+              </span>
             )}
           </div>
         </foreignObject>

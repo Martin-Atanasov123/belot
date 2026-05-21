@@ -3,10 +3,11 @@ import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { PublicNav } from '../components/PublicNav.js'
 import { CornerOrnament, Flourish, Monogram } from '../components/Ornaments.js'
-import { createRoom } from '../lib/api.js'
+import { createRoom, fetchRooms, type RoomListing } from '../lib/api.js'
 import { getNickname, getPlayerIdFor } from '../lib/identity.js'
 import { useAuth } from '../lib/auth.js'
 import { useT } from '../i18n/index.js'
+import { useGame } from '../store/game.js'
 import {
   computeStats,
   fetchProfileMatches,
@@ -33,6 +34,57 @@ export function Tablo() {
   const [joinCode, setJoinCode] = useState('')
   const [stats, setStats] = useState<ProfileStats | null>(null)
   const [recent, setRecent] = useState<MatchRow[]>([])
+  const [activeRooms, setActiveRooms] = useState<RoomListing[]>([])
+  const [roomsLoaded, setRoomsLoaded] = useState(false)
+
+  // Matchmaking state — drives the Quick Play button into search / matched modes.
+  const mmStatus = useGame((s) => s.mmStatus)
+  const mmJoinedAt = useGame((s) => s.mmJoinedAt)
+  const mmMatch = useGame((s) => s.mmMatch)
+  const findMatch = useGame((s) => s.findMatch)
+  const cancelFindMatch = useGame((s) => s.cancelFindMatch)
+  const clearMMMatch = useGame((s) => s.clearMMMatch)
+  const [mmElapsed, setMmElapsed] = useState(0)
+
+  // Tick a 1-Hz timer while searching so the button shows "13s · Cancel".
+  useEffect(() => {
+    if (mmStatus !== 'searching' || !mmJoinedAt) {
+      setMmElapsed(0)
+      return
+    }
+    const id = window.setInterval(() => {
+      setMmElapsed(Math.floor((Date.now() - mmJoinedAt) / 1000))
+    }, 1000)
+    setMmElapsed(Math.floor((Date.now() - mmJoinedAt) / 1000))
+    return () => window.clearInterval(id)
+  }, [mmStatus, mmJoinedAt])
+
+  // When the server pushes a match, navigate into the room and clear MM state.
+  useEffect(() => {
+    if (mmStatus !== 'matched' || !mmMatch) return
+    const code = mmMatch.code
+    clearMMMatch()
+    nav(`/r/${code}`)
+  }, [mmStatus, mmMatch, clearMMMatch, nav])
+
+  // Poll active rooms every 5 s so the list stays live.
+  useEffect(() => {
+    let cancelled = false
+    const load = () => {
+      void fetchRooms().then((list) => {
+        if (!cancelled) {
+          setActiveRooms(list)
+          setRoomsLoaded(true)
+        }
+      })
+    }
+    load()
+    const id = window.setInterval(load, 5_000)
+    return () => {
+      cancelled = true
+      window.clearInterval(id)
+    }
+  }, [])
 
   // Pull the signed-in user's recent matches + aggregate stats for the sidebar.
   useEffect(() => {
@@ -69,6 +121,20 @@ export function Tablo() {
   const onJoin = () => {
     const c = joinCode.trim().toUpperCase()
     if (c) nav(`/r/${c}`)
+  }
+
+  const onQuickPlay = async () => {
+    if (mmStatus === 'searching') {
+      await cancelFindMatch()
+      return
+    }
+    const playerId = user?.id ?? getPlayerIdFor(nick)
+    const r = await findMatch({ playerId, nickname: nick })
+    if (!r.ok) {
+      // Silent fallback — the button stays idle. Server already logs the reason.
+      // eslint-disable-next-line no-console
+      console.warn('[mm] findMatch failed:', r.error)
+    }
   }
 
   return (
@@ -119,8 +185,17 @@ export function Tablo() {
               {t('landing.join')}
             </button>
           </div>
-          <button disabled className="btn-ghost">
-            {t('tablo.quickPlay')} <span className="ml-2 text-[9px] opacity-60">({t('common.coming')})</span>
+          <button onClick={onQuickPlay} className="btn-ghost relative">
+            {mmStatus === 'searching' ? (
+              <span className="flex items-center justify-center gap-2">
+                <Spinner />
+                <span className="font-mono text-[10px] tracking-[0.18em]">
+                  {t('mm.searching')} {mmElapsed}s · {t('mm.cancel')}
+                </span>
+              </span>
+            ) : (
+              t('tablo.quickPlay')
+            )}
           </button>
         </motion.div>
 
@@ -133,13 +208,52 @@ export function Tablo() {
             transition={{ delay: 0.16, duration: 0.5 }}
             className="plate p-5 sm:p-6"
           >
-            <div className="flex items-center justify-between mb-4">
-              <div className="eyebrow">{t('tablo.activeRooms')}</div>
-              <span className="font-mono text-[10px] text-ash">{t('common.coming')}</span>
-            </div>
-            <div className="text-center py-10 font-display italic text-cream/55 text-sm">
-              {t('tablo.activeEmpty')}
-            </div>
+            <div className="eyebrow mb-4">{t('tablo.activeRooms')}</div>
+            {!roomsLoaded ? (
+              <div className="flex justify-center py-10">
+                <span className="inline-block w-4 h-4 rounded-full border-2 border-brass/40 border-t-brass-hi animate-spin" />
+              </div>
+            ) : activeRooms.length === 0 ? (
+              <div className="text-center py-10 font-display italic text-cream/55 text-sm">
+                {t('tablo.activeEmpty')}
+              </div>
+            ) : (
+              <ul className="divide-y divide-brass/10">
+                {activeRooms.map((room) => {
+                  const filledCount = room.seats.filter((s) => s.nickname !== null).length
+                  const joinable = !room.inGame && filledCount < 4
+                  const spectatable = room.inGame && room.settings.allowSpectators
+                  const hostNick = room.seats.find((s) => s.nickname && !s.isBot)?.nickname ?? '—'
+                  return (
+                    <li
+                      key={room.code}
+                      className={`py-3 flex items-center gap-3 ${
+                        joinable ? 'border-l-2 border-brass pl-3 -ml-3' : ''
+                      }`}
+                    >
+                      <span className="font-mono text-sm text-brass tracking-[0.18em] shrink-0">
+                        {room.code}
+                      </span>
+                      <span className="font-mono text-xs text-ash shrink-0">{filledCount}/4</span>
+                      <span className="font-display italic text-cream/80 text-sm flex-1 truncate min-w-0">
+                        {hostNick}
+                      </span>
+                      <span className={`font-mono text-[10px] tracking-[0.1em] shrink-0 ${room.inGame ? 'text-ash' : 'text-cream/55'}`}>
+                        {room.inGame ? t('tablo.inGame') : `до ${room.settings.gameTo}`}
+                      </span>
+                      {(joinable || spectatable) && (
+                        <button
+                          onClick={() => nav(`/r/${room.code}`)}
+                          className="btn-ghost py-1 px-3 text-xs shrink-0"
+                        >
+                          {spectatable ? t('tablo.spectate') : t('landing.join')}
+                        </button>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
             <Flourish className="w-32 mx-auto text-brass/30 mt-6" />
 
             <div className="mt-8">
@@ -231,6 +345,16 @@ function StatRow({ label, value }: { label: string; value: string }) {
       <span className="font-display italic text-cream/70 text-sm">{label}</span>
       <span className="font-mono text-brass-hi text-lg">{value}</span>
     </div>
+  )
+}
+
+// Tiny brass spinner for the Quick Play button while in queue.
+function Spinner() {
+  return (
+    <span
+      aria-hidden
+      className="inline-block w-3 h-3 rounded-full border-2 border-brass/40 border-t-brass-hi animate-spin"
+    />
   )
 }
 

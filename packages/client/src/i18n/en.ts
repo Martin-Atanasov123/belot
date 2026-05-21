@@ -256,6 +256,8 @@ export const en: Record<MessageKey, string> = {
   'tablo.statsWinsWeek': 'Wins (this week)',
   'tablo.statsStreak':   'Streak',
   'tablo.statsTotal':    'Total games',
+  'tablo.inGame':        'In game',
+  'tablo.spectate':      'Watch',
 
   // Profile
   'profile.stats':       'Stats',
@@ -354,6 +356,7 @@ export const en: Record<MessageKey, string> = {
   'tour.playerWon':      'I won',
   'tour.reportWin':      'Report win',
   'tour.reportingWin':   'Reporting…',
+  'tour.awaitingResult': 'Awaiting result',
   'tour.roundR1':        'R1',
   'tour.roundR16':       'R16',
   'tour.roundQF':        'QF',
@@ -361,6 +364,15 @@ export const en: Record<MessageKey, string> = {
   'tour.roundF':         'Final',
   'tour.youAreIn':       "You're in this match",
   'tour.invalidDates':   'Registration must close before start',
+
+  // Matchmaking (Quick Play)
+  'mm.searching':        'Finding opponents…',
+  'mm.cancel':           'Cancel',
+  'mm.elapsed':          'Elapsed',
+  'mm.matched':          'Match found!',
+  'mm.matchedWithBots':  'Match with bots',
+  'mm.joinNow':          'Join',
+  'mm.error':            'Could not join the queue',
 
   // Victory screen
   'victory.title':       'Victory',

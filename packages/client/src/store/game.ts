@@ -16,6 +16,10 @@ export type PublicRoomState = {
 
 export type ReactionEvent = { seat: Seat; emote: string; ts: number; id: number }
 
+// Matchmaking (Quick Play) state.
+export type MMStatus = 'idle' | 'searching' | 'matched'
+export type MMMatch = { code: string; withBots: boolean }
+
 type State = {
   socket: Socket | null
   connected: boolean
@@ -27,6 +31,9 @@ type State = {
   amSpectator: boolean
   hostId: string | null
   reactions: ReactionEvent[] // queue; entries auto-dropped after ~2s by the UI
+  mmStatus: MMStatus
+  mmJoinedAt: number | null
+  mmMatch: MMMatch | null
   connect: () => Socket
   clearJoinError: () => void
   join: (args: { code: string; playerId: string; nickname: string; isHost: boolean }) => Promise<{ ok: boolean; error?: string }>
@@ -37,6 +44,9 @@ type State = {
   react: (emote: string) => Promise<{ ok: boolean; error?: string }>
   dismissReaction: (id: number) => void
   send: (action: Action) => Promise<{ ok: boolean; error?: string }>
+  findMatch: (args: { playerId: string; nickname: string }) => Promise<{ ok: boolean; error?: string }>
+  cancelFindMatch: () => Promise<{ ok: boolean; error?: string }>
+  clearMMMatch: () => void
 }
 
 export const useGame = create<State>((set, get) => ({
@@ -50,6 +60,9 @@ export const useGame = create<State>((set, get) => ({
   amSpectator: false,
   hostId: null,
   reactions: [],
+  mmStatus: 'idle',
+  mmJoinedAt: null,
+  mmMatch: null,
 
   connect: () => {
     const existing = get().socket
@@ -76,6 +89,10 @@ export const useGame = create<State>((set, get) => ({
       const id = Date.now() + Math.random()
       set((s) => ({ reactions: [...s.reactions, { ...r, id }] }))
     })
+    // Matchmaking: server pushes the room code we got matched into.
+    sock.on('mm:matched', (m: MMMatch) => {
+      set({ mmStatus: 'matched', mmMatch: m })
+    })
 
     // When Supabase silently refreshes the JWT (typically every hour), push the
     // new token to the server so the socket-level identity cache stays current.
@@ -96,13 +113,24 @@ export const useGame = create<State>((set, get) => ({
   join: ({ code, playerId, nickname, isHost }) =>
     new Promise((resolve) => {
       const sock = get().connect()
+      // Guest reconnect secret (SEC-004): present the token minted on our first
+      // join so the server lets us reclaim our seat. Authed users reconnect via
+      // their JWT, so the token is simply absent for them on a fresh device.
+      const tokenKey = `belot.seat.${code.toUpperCase()}`
+      const seatToken = (() => {
+        try { return localStorage.getItem(tokenKey) ?? undefined } catch { return undefined }
+      })()
       const send = () =>
         sock.emit(
           'room:join',
-          { code, playerId, nickname },
-          (resp: { ok: boolean; error?: string; seat?: Seat; state?: PublicRoomState }) => {
+          { code, playerId, nickname, seatToken },
+          (resp: { ok: boolean; error?: string; seat?: Seat; state?: PublicRoomState; seatToken?: string | null }) => {
             if (resp.ok) {
               const roomState = resp.state ?? null
+              // Persist the seat token so a refresh/reconnect can prove identity.
+              if (resp.seatToken) {
+                try { localStorage.setItem(tokenKey, resp.seatToken) } catch { /* ignore */ }
+              }
               set({
                 mySeat: resp.seat ?? null,
                 room: roomState,
@@ -194,4 +222,38 @@ export const useGame = create<State>((set, get) => ({
       if (!sock) return resolve({ ok: false, error: 'no socket' })
       sock.emit('game:action', action, (resp: { ok: boolean; error?: string }) => resolve(resp))
     }),
+
+  // ── Matchmaking (Quick Play) ─────────────────────────────────────────────
+  findMatch: ({ playerId, nickname }) =>
+    new Promise((resolve) => {
+      const sock = get().connect()
+      const send = () =>
+        sock.emit(
+          'mm:join',
+          { playerId, nickname },
+          (resp: { ok: boolean; error?: string }) => {
+            if (resp.ok) {
+              set({ mmStatus: 'searching', mmJoinedAt: Date.now(), mmMatch: null })
+            }
+            resolve(resp)
+          },
+        )
+      if (sock.connected) send()
+      else sock.once('connect', send)
+    }),
+
+  cancelFindMatch: () =>
+    new Promise((resolve) => {
+      const sock = get().socket
+      if (!sock) {
+        set({ mmStatus: 'idle', mmJoinedAt: null })
+        return resolve({ ok: true })
+      }
+      sock.emit('mm:leave', {}, (resp: { ok: boolean; error?: string }) => {
+        set({ mmStatus: 'idle', mmJoinedAt: null })
+        resolve(resp)
+      })
+    }),
+
+  clearMMMatch: () => set({ mmStatus: 'idle', mmMatch: null, mmJoinedAt: null }),
 }))

@@ -303,20 +303,10 @@ export async function seedTournament(
   return { ok: true }
 }
 
-// Report a match winner. The DB trigger propagates the winner to the next slot
-// and closes the tournament when the final is decided.
-export async function reportMatchWinner(
-  matchRowId: string,
-  winnerId: string,
-): Promise<{ ok: true } | { ok: false; error: string }> {
-  if (!isSupabaseConfigured) return { ok: false, error: 'supabase not configured' }
-  const { error } = await supabase
-    .from('tournament_matches')
-    .update({ winner_id: winnerId })
-    .eq('id', matchRowId)
-  if (error) return { ok: false, error: error.message }
-  return { ok: true }
-}
+// NOTE: tournament winners are set SERVER-SIDE (audit SEC-002). The game server
+// writes tournament_matches.winner_id via the service role when a linked match
+// finishes; a DB trigger then propagates it. Clients are blocked from setting
+// winner_id, so there is no client-side reportMatchWinner anymore.
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 

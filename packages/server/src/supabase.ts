@@ -9,8 +9,9 @@ if (typeof globalThis.WebSocket === 'undefined') {
 }
 
 // Server-side Supabase client. Uses the SERVICE_ROLE key so it can bypass RLS
-// when writing match history rows. Also used to verify JWTs from connecting
-// sockets via supabase.auth.getUser(token).
+// when writing match history rows (the ONLY writer of public.matches and of
+// tournament_matches.winner_id — clients are read-only there). Also verifies
+// JWTs from connecting sockets (locally via JWT secret, or via getUser()).
 
 const SUPABASE_URL = process.env.SUPABASE_URL
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -78,5 +79,83 @@ export async function verifyAccessToken(token: string): Promise<AuthedUser | nul
     }
   } catch {
     return null
+  }
+}
+
+// ── Server-authoritative persistence (SEC-001 / SEC-002) ─────────────────────
+// These are the ONLY code paths that write match results. They run with the
+// service_role key (bypasses RLS) so the client write paths can stay revoked.
+
+export type MatchRowInput = {
+  roomCode: string
+  // seat ids ordered N,E,S,W (seats 2,3,0,1). null for guests/bots.
+  seatIds: { n: string | null; e: string | null; s: string | null; w: string | null }
+  seatNames: { n: string | null; e: string | null; s: string | null; w: string | null }
+  scoreNS: number
+  scoreEW: number
+  winnerTeam: 'NS' | 'EW'
+  handCount: number
+  settings: unknown
+  summary: unknown
+  startedAt: string
+}
+
+// Insert a finished match. Returns the new row id, or null on failure / when
+// Supabase isn't configured. Never throws.
+export async function persistMatchRow(input: MatchRowInput): Promise<string | null> {
+  if (!supabaseAdmin) return null
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('matches')
+      .insert({
+        room_code: input.roomCode,
+        seat_n_id: input.seatIds.n,
+        seat_e_id: input.seatIds.e,
+        seat_s_id: input.seatIds.s,
+        seat_w_id: input.seatIds.w,
+        seat_n_name: input.seatNames.n,
+        seat_e_name: input.seatNames.e,
+        seat_s_name: input.seatNames.s,
+        seat_w_name: input.seatNames.w,
+        score_ns: input.scoreNS,
+        score_ew: input.scoreEW,
+        winner_team: input.winnerTeam,
+        hand_count: input.handCount,
+        settings: input.settings,
+        summary: input.summary,
+        started_at: input.startedAt,
+      })
+      .select('id')
+      .maybeSingle()
+    if (error || !data) return null
+    return data.id as string
+  } catch {
+    return null
+  }
+}
+
+// Link a finished match to its tournament bracket slot and set the winner.
+// `winnerUid` must be the verified uid of the player on the winning team; the
+// DB trigger propagates the winner to the next round. No-op if the room isn't
+// tied to a tournament match. Never throws.
+export async function reportTournamentWinner(
+  roomCode: string,
+  matchId: string | null,
+  winnerUid: string,
+): Promise<void> {
+  if (!supabaseAdmin) return
+  try {
+    const { data: tmatch } = await supabaseAdmin
+      .from('tournament_matches')
+      .select('id, status')
+      .eq('room_code', roomCode)
+      .maybeSingle()
+    if (!tmatch || (tmatch as { status?: string }).status === 'finished') return
+    await supabaseAdmin
+      .from('tournament_matches')
+      .update({ winner_id: winnerUid, match_id: matchId, status: 'finished' })
+      .eq('id', (tmatch as { id: string }).id)
+  } catch {
+    /* best-effort */
   }
 }

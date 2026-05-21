@@ -28,6 +28,14 @@ export type SeatOccupant = {
   nickname: string
   connected: boolean
   isBot: boolean
+  // Verified Supabase auth uid when the seat is held by a signed-in user; null
+  // for guests and bots. Used for server-authoritative match persistence so a
+  // seat id can only ever be a real, JWT-verified profile id (never a guest UUID).
+  userId: string | null
+  // Random per-seat reconnect secret minted on first join. A guest must present
+  // it to reclaim this seat (prevents seat takeover via a leaked playerId, SEC-004).
+  // Authed users reclaim via their JWT instead, so this is irrelevant for them.
+  reconnectToken: string | null
   lastReactionAt?: number // ms timestamp; used to rate-limit emote spam
 }
 
@@ -48,16 +56,34 @@ export type Room = {
   emptyTimer: NodeJS.Timeout | null
   botTimer: NodeJS.Timeout | null
   trickResolveTimer: NodeJS.Timeout | null
+  // When true, the room auto-starts the game once all 4 seats are filled and
+  // every human is connected. Used by matchmaking-created rooms so players
+  // don't have to click "Start" after landing in the room.
+  autoStartOnFill: boolean
+  // Set once the finished match has been persisted to the DB, so a GAME_OVER
+  // state that gets re-broadcast doesn't write the row more than once.
+  persisted: boolean
 }
 
 export function noOccupantsConnected(room: Room): boolean {
+  // A room is "empty" when no humans are connected. Bots alone don't keep a
+  // room alive — without humans, the cleanup timer should fire.
   for (const s of [0, 1, 2, 3] as Seat[]) {
     const occ = room.seats[s]
-    if (occ && occ.connected) return false
+    if (occ && !occ.isBot && occ.connected) return false
   }
   // If a spectator is still hanging out, keep the room alive too.
   if (room.spectators.size > 0) return false
   return true
+}
+
+// True when every seat is filled AND every human in it is connected (bots
+// always count as connected). Used by matchmaking's auto-start trigger.
+export function everyoneConnected(room: Room): boolean {
+  return ([0, 1, 2, 3] as Seat[]).every((s) => {
+    const occ = room.seats[s]
+    return !!occ && (occ.isBot || occ.connected)
+  })
 }
 
 export type PublicRoomState = {
@@ -82,6 +108,8 @@ export function createRoom(code: string, hostId: string, settings: Partial<RoomS
     emptyTimer: null,
     botTimer: null,
     trickResolveTimer: null,
+    autoStartOnFill: false,
+    persisted: false,
   }
 }
 
@@ -120,14 +148,16 @@ export function takeSeat(
   seat: Seat,
   playerId: string,
   nickname: string,
-): { ok: true } | { ok: false; error: string } {
+  userId: string | null = null,
+): { ok: true; reconnectToken: string } | { ok: false; error: string } {
   if (room.snapshot) return { ok: false, error: 'game already in progress' }
   if (room.seats[seat]) return { ok: false, error: 'seat taken' }
   // If this playerId already holds another seat, free it.
   const existing = findSeatByPlayerId(room, playerId)
   if (existing !== null) room.seats[existing] = null
-  room.seats[seat] = { playerId, nickname, connected: true, isBot: false }
-  return { ok: true }
+  const reconnectToken = randomBytes(16).toString('hex')
+  room.seats[seat] = { playerId, nickname, connected: true, isBot: false, userId, reconnectToken }
+  return { ok: true, reconnectToken }
 }
 
 export function addBot(
@@ -138,7 +168,7 @@ export function addBot(
   if (room.snapshot) return { ok: false, error: 'game already in progress' }
   if (room.seats[seat]) return { ok: false, error: 'seat taken' }
   const playerId = `bot-${room.code}-${seat}-${randomBytes(6).toString('hex')}`
-  room.seats[seat] = { playerId, nickname, connected: true, isBot: true }
+  room.seats[seat] = { playerId, nickname, connected: true, isBot: true, userId: null, reconnectToken: null }
   return { ok: true, playerId }
 }
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { PublicNav } from '../components/PublicNav.js'
 import { Flourish, Monogram } from '../components/Ornaments.js'
@@ -6,6 +7,14 @@ import { useI18n, useT } from '../i18n/index.js'
 import { getNickname, setNickname } from '../lib/identity.js'
 import { useAuth } from '../lib/auth.js'
 import { supabase } from '../lib/supabase.js'
+import { deleteAccount } from '../lib/api.js'
+import {
+  NOTIF_KEYS,
+  enableTurnAlerts,
+  notificationPermission,
+  readNotifPref,
+  writeNotifPref,
+} from '../lib/notify.js'
 import type { MessageKey } from '../i18n/bg.js'
 
 // Settings page — per design spec §16 НАСТРОЙКИ.
@@ -17,11 +26,11 @@ import type { MessageKey } from '../i18n/bg.js'
 
 type Tab = 'profile' | 'game' | 'notif' | 'account' | 'privacy'
 
-const TABS: Array<{ id: Tab; labelKey: MessageKey; gated?: boolean }> = [
+const TABS: Array<{ id: Tab; labelKey: MessageKey }> = [
   { id: 'profile', labelKey: 'settings.profile' },
   { id: 'game',    labelKey: 'settings.game' },
-  { id: 'notif',   labelKey: 'settings.notif',   gated: true },
-  { id: 'account', labelKey: 'settings.account', gated: true },
+  { id: 'notif',   labelKey: 'settings.notif' },
+  { id: 'account', labelKey: 'settings.account' },
   { id: 'privacy', labelKey: 'settings.privacy' },
 ]
 
@@ -106,8 +115,8 @@ export function Settings() {
           <section className="plate p-5 sm:p-7">
             {tab === 'profile' && <ProfileTab />}
             {tab === 'game' && <GameTab />}
-            {tab === 'notif' && <GatedPanel />}
-            {tab === 'account' && <GatedPanel />}
+            {tab === 'notif' && <NotificationsTab />}
+            {tab === 'account' && <AccountTab />}
             {tab === 'privacy' && <PrivacyTab />}
           </section>
         </div>
@@ -133,6 +142,8 @@ function ProfileTab() {
     if (profile?.username) setNick(profile.username)
   }, [profile?.username])
 
+  const [saving, setSaving] = useState(false)
+
   const onSave = async () => {
     const trimmed = nick.trim()
     if (!trimmed) return
@@ -141,16 +152,46 @@ function ProfileTab() {
       setErr(t('auth.usernameHint'))
       return
     }
+    // No-op if unchanged — avoids a needless round-trip and a false "taken".
+    if (profile?.username === trimmed) {
+      setNickname(trimmed)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 1200)
+      return
+    }
     // Always persist to localStorage for guest/offline nickname.
     setNickname(trimmed)
     // Also update public.profiles when signed in.
     if (userId) {
+      setSaving(true)
+      // Pre-check availability so the user gets a friendly message instead of a
+      // raw "duplicate key value violates unique constraint" Postgres error.
+      // The username unique constraint is exact-case, so an exact match is what
+      // would collide.
+      const { data: taken, error: checkErr } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('username', trimmed)
+        .neq('id', userId)
+        .maybeSingle()
+      if (checkErr) {
+        setSaving(false)
+        setErr(checkErr.message)
+        return
+      }
+      if (taken) {
+        setSaving(false)
+        setErr(t('settings.usernameTaken'))
+        return
+      }
       const { error } = await supabase
         .from('profiles')
         .update({ username: trimmed, updated_at: new Date().toISOString() })
         .eq('id', userId)
+      setSaving(false)
       if (error) {
-        setErr(error.message)
+        // 23505 = unique_violation (lost a race between the check and the update).
+        setErr(error.code === '23505' ? t('settings.usernameTaken') : error.message)
         return
       }
       await refreshProfile()
@@ -186,8 +227,8 @@ function ProfileTab() {
       </label>
 
       <div className="flex items-center gap-3">
-        <button onClick={() => void onSave()} className="btn-brass">
-          {saved ? t('lobby.copied') : t('common.save')}
+        <button onClick={() => void onSave()} disabled={saving} className="btn-brass">
+          {saving ? '…' : saved ? t('lobby.copied') : t('common.save')}
         </button>
       </div>
       {err && (
@@ -321,30 +362,260 @@ function RadioGroup({
   )
 }
 
-// ── Gated panel — for notif / account tabs (need auth) ─────────────
-function GatedPanel() {
+// ── Sign-up CTA — shown on auth-gated tabs when signed out ─────────
+function SignUpCTA() {
   const t = useT()
-  const session = useAuth((s) => s.session)
-  const status = useAuth((s) => s.status)
-
-  // While the auth state is resolving, render nothing.
-  if (status === 'loading') return null
-
-  // Signed-in users see a "coming soon" placeholder instead of the signup CTA.
-  if (session) {
-    return (
-      <div className="text-center py-10">
-        <div className="font-display italic text-cream/55">{t('common.coming')}</div>
-      </div>
-    )
-  }
-
   return (
     <div className="text-center py-10">
       <div className="font-display italic text-cream/55 mb-4">{t('settings.signUpToEnable')}</div>
       <a href="/registracia" className="btn-brass">
         {t('nav.signup')}
       </a>
+    </div>
+  )
+}
+
+// ── Notifications tab — browser turn alerts + sound (no backend) ────
+function NotificationsTab() {
+  const t = useT()
+  const [turn, setTurn] = useState(() => readNotifPref(NOTIF_KEYS.turn))
+  const [sound, setSound] = useState(() => readNotifPref(NOTIF_KEYS.sound))
+  const [perm, setPerm] = useState(() => notificationPermission())
+
+  const onToggleTurn = async () => {
+    if (turn) {
+      writeNotifPref(NOTIF_KEYS.turn, false)
+      setTurn(false)
+      return
+    }
+    const result = await enableTurnAlerts()
+    setPerm(result === 'unsupported' ? 'denied' : result)
+    if (result === 'granted') {
+      writeNotifPref(NOTIF_KEYS.turn, true)
+      setTurn(true)
+    }
+  }
+
+  const onToggleSound = () => {
+    const next = !sound
+    writeNotifPref(NOTIF_KEYS.sound, next)
+    setSound(next)
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <ToggleRow
+        label={t('settings.notifTurn')}
+        hint={t('settings.notifTurnHint')}
+        on={turn}
+        onToggle={() => void onToggleTurn()}
+      />
+      {perm === 'denied' && (
+        <div className="text-ember-hi font-display italic text-sm -mt-3">
+          {t('settings.notifBlocked')}
+        </div>
+      )}
+      <ToggleRow
+        label={t('settings.notifSound')}
+        hint={t('settings.notifSoundHint')}
+        on={sound}
+        onToggle={onToggleSound}
+      />
+    </div>
+  )
+}
+
+function ToggleRow({
+  label,
+  hint,
+  on,
+  onToggle,
+}: {
+  label: string
+  hint?: string
+  on: boolean
+  onToggle: () => void
+}) {
+  return (
+    <div className="flex items-start justify-between gap-4">
+      <div className="min-w-0">
+        <div className="font-display italic text-cream text-base">{label}</div>
+        {hint && <div className="font-mono text-[10px] tracking-[0.12em] text-ash mt-1">{hint}</div>}
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={on}
+        onClick={onToggle}
+        className={`shrink-0 w-12 h-7 rounded-full border transition relative ${
+          on ? 'bg-brass/30 border-brass' : 'bg-ink/60 border-ash/30'
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 w-5 h-5 rounded-full transition-all ${
+            on ? 'left-6 bg-brass-hi' : 'left-0.5 bg-ash'
+          }`}
+        />
+      </button>
+    </div>
+  )
+}
+
+// ── Account tab — change password / email, delete account ──────────
+function AccountTab() {
+  const t = useT()
+  const status = useAuth((s) => s.status)
+  const session = useAuth((s) => s.session)
+  const user = useAuth((s) => s.user)
+  const profile = useAuth((s) => s.profile)
+  const signOut = useAuth((s) => s.signOut)
+  const nav = useNavigate()
+
+  const [pw, setPw] = useState('')
+  const [pw2, setPw2] = useState('')
+  const [pwMsg, setPwMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const [pwBusy, setPwBusy] = useState(false)
+
+  const [email, setEmail] = useState('')
+  const [emailMsg, setEmailMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const [emailBusy, setEmailBusy] = useState(false)
+
+  const [confirmText, setConfirmText] = useState('')
+  const [delBusy, setDelBusy] = useState(false)
+  const [delErr, setDelErr] = useState<string | null>(null)
+
+  if (status === 'loading') return null
+  if (!session || !user) return <SignUpCTA />
+
+  const onChangePassword = async () => {
+    setPwMsg(null)
+    if (pw.length < 8) return setPwMsg({ ok: false, text: t('settings.pwTooShort') })
+    if (pw !== pw2) return setPwMsg({ ok: false, text: t('settings.pwMismatch') })
+    setPwBusy(true)
+    const { error } = await supabase.auth.updateUser({ password: pw })
+    setPwBusy(false)
+    if (error) return setPwMsg({ ok: false, text: error.message })
+    setPw('')
+    setPw2('')
+    setPwMsg({ ok: true, text: t('settings.pwChanged') })
+  }
+
+  const onChangeEmail = async () => {
+    setEmailMsg(null)
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      return setEmailMsg({ ok: false, text: t('settings.emailInvalid') })
+    }
+    setEmailBusy(true)
+    const { error } = await supabase.auth.updateUser({ email })
+    setEmailBusy(false)
+    if (error) return setEmailMsg({ ok: false, text: error.message })
+    setEmail('')
+    setEmailMsg({ ok: true, text: t('settings.emailConfirmSent') })
+  }
+
+  const canDelete = confirmText.trim() === (profile?.username ?? '') && !!profile?.username
+  const onDelete = async () => {
+    if (!canDelete) return
+    setDelErr(null)
+    setDelBusy(true)
+    const token = session.access_token
+    const r = await deleteAccount(token)
+    if (!r.ok) {
+      setDelBusy(false)
+      setDelErr(r.error ?? 'failed')
+      return
+    }
+    await signOut()
+    nav('/')
+  }
+
+  return (
+    <div className="flex flex-col gap-8">
+      {/* Change password */}
+      <section className="flex flex-col gap-3">
+        <div className="eyebrow eyebrow-active">{t('settings.changePassword')}</div>
+        <input
+          type="password"
+          value={pw}
+          onChange={(e) => setPw(e.target.value)}
+          placeholder={t('settings.newPassword')}
+          className="input-salon w-full"
+          autoComplete="new-password"
+        />
+        <input
+          type="password"
+          value={pw2}
+          onChange={(e) => setPw2(e.target.value)}
+          placeholder={t('settings.confirmPassword')}
+          className="input-salon w-full"
+          autoComplete="new-password"
+        />
+        <div>
+          <button onClick={() => void onChangePassword()} disabled={pwBusy} className="btn-brass">
+            {pwBusy ? '…' : t('settings.updatePassword')}
+          </button>
+        </div>
+        {pwMsg && (
+          <div className={`font-display italic text-sm ${pwMsg.ok ? 'text-brass-hi' : 'text-ember-hi'}`}>
+            {pwMsg.text}
+          </div>
+        )}
+      </section>
+
+      {/* Change email */}
+      <section className="flex flex-col gap-3 pt-6 border-t border-brass/15">
+        <div className="eyebrow eyebrow-active">{t('settings.changeEmail')}</div>
+        <div className="font-mono text-[10px] tracking-[0.12em] text-ash">
+          {t('settings.currentEmail')}: {user.email ?? '—'}
+        </div>
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder={t('settings.newEmail')}
+          className="input-salon w-full"
+          autoComplete="email"
+        />
+        <div>
+          <button onClick={() => void onChangeEmail()} disabled={emailBusy} className="btn-brass">
+            {emailBusy ? '…' : t('settings.updateEmail')}
+          </button>
+        </div>
+        {emailMsg && (
+          <div className={`font-display italic text-sm ${emailMsg.ok ? 'text-brass-hi' : 'text-ember-hi'}`}>
+            {emailMsg.text}
+          </div>
+        )}
+      </section>
+
+      {/* Delete account */}
+      <section className="flex flex-col gap-3 pt-6 border-t border-ember/30">
+        <div className="eyebrow text-ember-hi">{t('settings.dangerZone')}</div>
+        <p className="font-display italic text-cream/70 text-sm leading-relaxed">
+          {t('settings.deleteWarning')}
+        </p>
+        <label className="block">
+          <span className="font-mono text-[10px] tracking-[0.12em] text-ash">
+            {t('settings.deleteConfirmLabel', { name: profile?.username ?? '' })}
+          </span>
+          <input
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+            placeholder={profile?.username ?? ''}
+            className="input-salon w-full mt-2"
+          />
+        </label>
+        <div>
+          <button
+            onClick={() => void onDelete()}
+            disabled={!canDelete || delBusy}
+            className="px-5 py-2.5 rounded font-mono text-[11px] tracking-[0.22em] uppercase border border-ember bg-ember/20 text-ember-hi transition hover:bg-ember/30 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {delBusy ? '…' : t('settings.deleteAccount')}
+          </button>
+        </div>
+        {delErr && <div className="font-display italic text-ember-hi text-sm">{delErr}</div>}
+      </section>
     </div>
   )
 }

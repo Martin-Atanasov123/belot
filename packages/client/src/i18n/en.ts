@@ -307,6 +307,33 @@ export const en: Record<MessageKey, string> = {
   'settings.privacyPolicy':'Privacy policy',
   'settings.privacyHint':'Without signing up we keep nothing outside your browser.',
   'settings.syncedToAccount':'Synced to account',
+  'settings.usernameTaken': 'That name is already taken. Pick another.',
+  // Notifications tab
+  'settings.notifTurn':      'Notify me when it’s my turn',
+  'settings.notifTurnHint':  'A browser popup when you’re playing in another tab.',
+  'settings.notifSound':     'Sound when it’s my turn',
+  'settings.notifSoundHint': 'A short chime when your turn begins.',
+  'settings.notifBlocked':   'Notifications are blocked by your browser. Allow them in the site settings.',
+  // Account tab
+  'settings.changePassword': 'Change password',
+  'settings.newPassword':    'New password',
+  'settings.confirmPassword':'Confirm password',
+  'settings.updatePassword': 'Update password',
+  'settings.pwTooShort':     'Password must be at least 8 characters.',
+  'settings.pwMismatch':     'Passwords don’t match.',
+  'settings.pwChanged':      'Password changed.',
+  'settings.currentEmail':   'Current email',
+  'settings.newEmail':       'New email',
+  'settings.updateEmail':    'Update email',
+  'settings.emailInvalid':   'Invalid email address.',
+  'settings.emailConfirmSent':'We sent a confirmation link to the new email.',
+  'settings.dangerZone':     'Danger zone',
+  'settings.deleteWarning':  'Deleting your account is permanent. Your profile and stats are removed forever.',
+  'settings.deleteConfirmLabel':'Type “{name}” to confirm',
+  'settings.deleteAccount':  'Delete account permanently',
+  // Turn notification body (used outside React tree)
+  'notif.turnTitle':         'Belot — your turn',
+  'notif.turnBody':          'It’s your move.',
 
   // Tournaments
   'tour.title':          'Tournaments',
@@ -373,6 +400,9 @@ export const en: Record<MessageKey, string> = {
   'mm.matchedWithBots':  'Match with bots',
   'mm.joinNow':          'Join',
   'mm.error':            'Could not join the queue',
+  'mm.botsIn':           'Bots in',
+  'mm.never':            'No bots',
+  'mm.waitHint':         'How long to wait for real players before adding bots. “No bots” waits until 4 humans gather.',
 
   // Victory screen
   'victory.title':       'Victory',

@@ -44,7 +44,7 @@ type State = {
   react: (emote: string) => Promise<{ ok: boolean; error?: string }>
   dismissReaction: (id: number) => void
   send: (action: Action) => Promise<{ ok: boolean; error?: string }>
-  findMatch: (args: { playerId: string; nickname: string }) => Promise<{ ok: boolean; error?: string }>
+  findMatch: (args: { playerId: string; nickname: string; botFillAfterMs?: number | null }) => Promise<{ ok: boolean; error?: string }>
   cancelFindMatch: () => Promise<{ ok: boolean; error?: string }>
   clearMMMatch: () => void
 }
@@ -224,13 +224,13 @@ export const useGame = create<State>((set, get) => ({
     }),
 
   // ── Matchmaking (Quick Play) ─────────────────────────────────────────────
-  findMatch: ({ playerId, nickname }) =>
+  findMatch: ({ playerId, nickname, botFillAfterMs }) =>
     new Promise((resolve) => {
       const sock = get().connect()
       const send = () =>
         sock.emit(
           'mm:join',
-          { playerId, nickname },
+          { playerId, nickname, botFillAfterMs },
           (resp: { ok: boolean; error?: string }) => {
             if (resp.ok) {
               set({ mmStatus: 'searching', mmJoinedAt: Date.now(), mmMatch: null })

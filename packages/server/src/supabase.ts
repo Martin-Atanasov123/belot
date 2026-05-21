@@ -134,6 +134,22 @@ export async function persistMatchRow(input: MatchRowInput): Promise<string | nu
   }
 }
 
+// Permanently delete a user's auth account. Cascades to public.profiles
+// (on delete cascade); match/tournament references are set null so history is
+// preserved anonymously. Returns ok/err. Never throws.
+export async function deleteUserAccount(
+  userId: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!supabaseAdmin) return { ok: false, error: 'account service unavailable' }
+  try {
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(userId)
+    if (error) return { ok: false, error: error.message }
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: String(err) }
+  }
+}
+
 // Link a finished match to its tournament bracket slot and set the winner.
 // `winnerUid` must be the verified uid of the player on the winning team; the
 // DB trigger propagates the winner to the next round. No-op if the room isn't

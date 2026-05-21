@@ -306,6 +306,33 @@ export const bg = {
   'settings.privacyPolicy':'Политика за поверителност',
   'settings.privacyHint':'Без регистрация не съхраняваме нищо извън браузъра ти.',
   'settings.syncedToAccount':'Синхронизирано с акаунта',
+  'settings.usernameTaken': 'Това име вече е заето. Избери друго.',
+  // Notifications tab
+  'settings.notifTurn':      'Известие, когато е твой ред',
+  'settings.notifTurnHint':  'Изскачащо известие в браузъра, когато играеш в друг таб.',
+  'settings.notifSound':     'Звук, когато е твой ред',
+  'settings.notifSoundHint': 'Кратък звуков сигнал при започване на твоя ход.',
+  'settings.notifBlocked':   'Известията са блокирани от браузъра. Разреши ги от настройките на сайта.',
+  // Account tab
+  'settings.changePassword': 'Смяна на парола',
+  'settings.newPassword':    'Нова парола',
+  'settings.confirmPassword':'Потвърди паролата',
+  'settings.updatePassword': 'Обнови паролата',
+  'settings.pwTooShort':     'Паролата трябва да е поне 8 знака.',
+  'settings.pwMismatch':     'Паролите не съвпадат.',
+  'settings.pwChanged':      'Паролата е сменена.',
+  'settings.currentEmail':   'Текущ имейл',
+  'settings.newEmail':       'Нов имейл',
+  'settings.updateEmail':    'Обнови имейла',
+  'settings.emailInvalid':   'Невалиден имейл адрес.',
+  'settings.emailConfirmSent':'Изпратихме линк за потвърждение на новия имейл.',
+  'settings.dangerZone':     'Опасна зона',
+  'settings.deleteWarning':  'Изтриването на акаунта е необратимо. Профилът и статистиките ти се премахват завинаги.',
+  'settings.deleteConfirmLabel':'Напиши „{name}", за да потвърдиш',
+  'settings.deleteAccount':  'Изтрий акаунта завинаги',
+  // Turn notification body (used outside React tree)
+  'notif.turnTitle':         'Белот — твой ред',
+  'notif.turnBody':          'Време е за твоя ход.',
 
   // Tournaments (spec §14–15)
   'tour.title':          'Турнири',
@@ -372,6 +399,9 @@ export const bg = {
   'mm.matchedWithBots':  'Мач с ботове',
   'mm.joinNow':          'Влез',
   'mm.error':            'Не успяхме да те запишем в опашката',
+  'mm.botsIn':           'Ботове след',
+  'mm.never':            'Без ботове',
+  'mm.waitHint':         'Колко да чакаме за истински играчи, преди да добавим ботове. „Без ботове" чака докато се съберат 4-ма души.',
 
   // Победа екран (spec §12)
   'victory.title':       'Победа',

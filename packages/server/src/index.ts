@@ -5,6 +5,7 @@ import { Server as SocketIOServer } from 'socket.io'
 import { customAlphabet } from 'nanoid'
 import { z } from 'zod'
 import {
+  deleteUserAccount,
   persistMatchRow,
   reportTournamentWinner,
   verifyAccessToken,
@@ -246,6 +247,23 @@ app.get('/rooms/:code', async (req, reply) => {
   return publicState(room)
 })
 
+// Permanently delete the authenticated user's account. The browser can't do
+// this (anon key can't touch auth.users), so it's a server endpoint guarded by
+// the caller's own JWT — a user can only delete themselves.
+const allowAccountDelete = makeIpLimiter(5, 60_000)
+app.post('/account/delete', async (req, reply) => {
+  if (!allowAccountDelete(req.ip)) {
+    return reply.code(429).send({ error: 'too many attempts' })
+  }
+  const authedUser = await getAuthedUserFromRequest(req)
+  if (!authedUser) return reply.code(401).send({ error: 'not authenticated' })
+  const result = await deleteUserAccount(authedUser.id)
+  if (!result.ok) return reply.code(500).send({ error: result.error })
+  // Drop the user from any room they were seated in is handled on socket
+  // disconnect when the client signs out / closes.
+  return { ok: true }
+})
+
 // List joinable / spectatable public rooms. Excludes matchmaking rooms (autoStartOnFill).
 app.get('/rooms', async (req, reply) => {
   if (!allowRoomLookup(req.ip)) {
@@ -456,10 +474,14 @@ type MMEntry = {
   playerId: string
   nickname: string
   joinedAt: number
+  // How long to wait for 3 more humans before filling with bots. null = never
+  // (humans only — stay queued until a full table of real players forms).
+  botFillAfterMs: number | null
 }
 
 const MM_PAIRING_INTERVAL_MS = 2_000
-const MM_BOT_FILL_AFTER_MS   = 30_000
+const MM_BOT_FILL_AFTER_MS   = 30_000  // default when the client doesn't specify
+const MM_BOT_FILL_MAX_MS     = 600_000 // clamp ceiling (10 min)
 const MM_GROUP_SIZE          = 4
 
 const mmQueue = new Map<string, MMEntry>() // keyed by socket.id
@@ -516,10 +538,10 @@ function processMatchmaking(): void {
     const group = entries.splice(0, MM_GROUP_SIZE)
     startMatchmakingRoom(group)
   }
-  // Bot fallback
+  // Bot fallback — per-entry wait. null botFillAfterMs = humans only (skip).
   const now = Date.now()
   for (const entry of entries) {
-    if (now - entry.joinedAt >= MM_BOT_FILL_AFTER_MS) {
+    if (entry.botFillAfterMs !== null && now - entry.joinedAt >= entry.botFillAfterMs) {
       startMatchmakingRoomWithBots(entry)
     }
   }
@@ -574,6 +596,8 @@ io.on('connection', (socket) => {
       .object({
         playerId: z.string().min(1),
         nickname: z.string().min(1).max(20),
+        // Wait time before bots fill the table. null = humans only (wait forever).
+        botFillAfterMs: z.number().int().min(0).max(MM_BOT_FILL_MAX_MS).nullable().optional(),
       })
       .safeParse(raw)
     if (!parsed.success) return cb({ ok: false, error: 'invalid payload' })
@@ -582,13 +606,17 @@ io.on('connection', (socket) => {
 
     const resolvedPlayerId = currentUser()?.id ?? parsed.data.playerId
     const safeNickname = sanitizeNickname(parsed.data.nickname) || 'Player'
+    const botFillAfterMs =
+      parsed.data.botFillAfterMs === undefined ? MM_BOT_FILL_AFTER_MS : parsed.data.botFillAfterMs
     mmQueue.set(socket.id, {
       socket,
       playerId: resolvedPlayerId,
       nickname: safeNickname,
       joinedAt: Date.now(),
+      botFillAfterMs,
     })
-    cb({ ok: true })
+    // Tell the searcher how many others are waiting (live feedback).
+    cb({ ok: true, searching: mmQueue.size })
   })
 
   socket.on('mm:leave', (_raw, cb: (resp: unknown) => void) => {

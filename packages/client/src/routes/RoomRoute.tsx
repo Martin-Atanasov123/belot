@@ -4,6 +4,7 @@ import { useGame } from '../store/game.js'
 import { getNickname, getPlayerIdFor, setNickname } from '../lib/identity.js'
 import { useAuth } from '../lib/auth.js'
 import { useT } from '../i18n/index.js'
+import { useTurnNotifier } from '../lib/notify.js'
 import { Lobby } from '../components/Lobby.js'
 import { Table } from '../components/Table.js'
 import { JoinForm } from '../components/JoinForm.js'
@@ -68,6 +69,9 @@ export function RoomRoute() {
     void enter()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code, chosen, mode, nick, isHost, retryNonce])
+
+  // Browser notification + sound when it becomes your turn (opt-in in Settings).
+  useTurnNotifier(view, { title: t('notif.turnTitle'), body: t('notif.turnBody') })
 
   if (!code) return null
 

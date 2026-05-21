@@ -203,13 +203,9 @@ export function Tablo() {
             </button>
             {mmStatus !== 'searching' && (
               <div className="flex items-center gap-1" title={t('mm.waitHint')}>
-                <span className="font-mono text-[9px] tracking-[0.18em] uppercase text-ash mr-1">
-                  {t('mm.botsIn')}
-                </span>
                 {([
-                  { v: 30_000 as number | null, label: '30s' },
-                  { v: 120_000 as number | null, label: '2m' },
-                  { v: null as number | null, label: t('mm.never') },
+                  { v: 30_000 as number | null, label: t('mm.withBots') },
+                  { v: null as number | null, label: t('mm.withoutBots') },
                 ]).map((opt) => {
                   const active = botFill === opt.v
                   return (
@@ -217,7 +213,7 @@ export function Tablo() {
                       key={opt.label}
                       type="button"
                       onClick={() => setBotFill(opt.v)}
-                      className={`px-2 py-0.5 rounded font-mono text-[9px] tracking-[0.12em] uppercase border transition ${
+                      className={`flex-1 px-2 py-0.5 rounded font-mono text-[9px] tracking-[0.12em] uppercase border transition ${
                         active
                           ? 'bg-brass/15 border-brass text-brass-hi'
                           : 'border-ash/25 text-ash hover:text-cream hover:border-cream/40'

@@ -400,9 +400,9 @@ export const en: Record<MessageKey, string> = {
   'mm.matchedWithBots':  'Match with bots',
   'mm.joinNow':          'Join',
   'mm.error':            'Could not join the queue',
-  'mm.botsIn':           'Bots in',
-  'mm.never':            'No bots',
-  'mm.waitHint':         'How long to wait for real players before adding bots. “No bots” waits until 4 humans gather.',
+  'mm.withBots':         'With bots',
+  'mm.withoutBots':      'No bots',
+  'mm.waitHint':         'With bots: if 4 humans don’t gather within 30s, empty seats fill with bots. No bots: waits until real players arrive.',
 
   // Victory screen
   'victory.title':       'Victory',

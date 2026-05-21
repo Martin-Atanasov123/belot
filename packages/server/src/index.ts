@@ -480,9 +480,13 @@ type MMEntry = {
 }
 
 const MM_PAIRING_INTERVAL_MS = 2_000
-const MM_BOT_FILL_AFTER_MS   = 30_000  // default when the client doesn't specify
-const MM_BOT_FILL_MAX_MS     = 600_000 // clamp ceiling (10 min)
+const MM_BOT_FILL_AFTER_MS   = 30_000  // default + hard ceiling for "with bots"
+const MM_BOT_FILL_MAX_MS     = 600_000 // clamp ceiling for client-supplied values
 const MM_GROUP_SIZE          = 4
+// Graduated bot-fill (Phase-1 spec): the fewer real players are waiting, the
+// less point in holding out — so fill sooner. Both stay under the 30s ceiling.
+const MM_BOT_FILL_SOLO_MS    = 5_000   // a lone searcher → bots almost instantly
+const MM_BOT_FILL_GROUP_MS   = 15_000  // 2-3 waiting → give the human table a chance
 
 const mmQueue = new Map<string, MMEntry>() // keyed by socket.id
 
@@ -508,21 +512,30 @@ function startMatchmakingRoom(group: MMEntry[]): void {
   app.log.info({ code, players: group.length }, 'matchmaking: room created (humans)')
 }
 
-function startMatchmakingRoomWithBots(entry: MMEntry): void {
+// Seat a group of 1-3 real players together and fill the remaining seats with
+// bots, so two matchmade humans share a table instead of getting separate
+// bot games.
+function startMatchmakingRoomWithBots(group: MMEntry[]): void {
+  if (group.length === 0) return
   if (!ensureRoomCapacity()) return // retry next tick
   const code = roomCode()
-  const room = createRoom(code, entry.playerId)
+  const host = group[0]!
+  const room = createRoom(code, host.playerId)
   room.autoStartOnFill = true
   rooms.set(code, room)
-  // Three bots pre-seated; the human takes seat 0 when they join.
-  addBot(room, 1, 'Bot 1')
-  addBot(room, 2, 'Bot 2')
-  addBot(room, 3, 'Bot 3')
+  // Pre-seat bots in the HIGHEST seats so humans take the low ones on join
+  // (findFreeSeat returns the lowest free seat).
+  const botsNeeded = MM_GROUP_SIZE - group.length
+  for (let i = 0; i < botsNeeded; i++) {
+    addBot(room, (3 - i) as Seat, `Bot ${i + 1}`)
+  }
   scheduleEmptyTimer(room)
 
-  mmQueue.delete(entry.socket.id)
-  entry.socket.emit('mm:matched', { code, withBots: true })
-  app.log.info({ code }, 'matchmaking: room created (bot fill)')
+  for (const e of group) {
+    mmQueue.delete(e.socket.id)
+    e.socket.emit('mm:matched', { code, withBots: true })
+  }
+  app.log.info({ code, humans: group.length, bots: botsNeeded }, 'matchmaking: room created (bot fill)')
 }
 
 function processMatchmaking(): void {
@@ -533,17 +546,24 @@ function processMatchmaking(): void {
 
   // Oldest-first ordering.
   const entries = [...mmQueue.values()].sort((a, b) => a.joinedAt - b.joinedAt)
-  // Group of 4
+
+  // 1) Full tables of 4 real players — instant, regardless of bot preference.
   while (entries.length >= MM_GROUP_SIZE) {
     const group = entries.splice(0, MM_GROUP_SIZE)
     startMatchmakingRoom(group)
   }
-  // Bot fallback — per-entry wait. null botFillAfterMs = humans only (skip).
-  const now = Date.now()
-  for (const entry of entries) {
-    if (entry.botFillAfterMs !== null && now - entry.joinedAt >= entry.botFillAfterMs) {
-      startMatchmakingRoomWithBots(entry)
-    }
+
+  // 2) Leftover 1-3 humans → graduated bot-fill, but only for those who opted
+  //    into bots. "Without bots" searchers (botFillAfterMs === null) keep
+  //    waiting until a full human table forms.
+  const botOk = entries.filter((e) => e.botFillAfterMs !== null)
+  if (botOk.length === 0) return
+  const oldest = botOk[0]!
+  const base = botOk.length <= 1 ? MM_BOT_FILL_SOLO_MS : MM_BOT_FILL_GROUP_MS
+  // Never exceed the searcher's chosen ceiling (30s for "with bots").
+  const threshold = Math.min(base, oldest.botFillAfterMs!)
+  if (Date.now() - oldest.joinedAt >= threshold) {
+    startMatchmakingRoomWithBots(botOk.slice(0, MM_GROUP_SIZE))
   }
 }
 

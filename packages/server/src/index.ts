@@ -687,7 +687,16 @@ io.on('connection', (socket) => {
       // seat (SEC-004).
       const occ = room.seats[seat]!
       const authedMatch = !!user && occ.userId === user.id
-      if (!authedMatch && occ.reconnectToken && parsed.data.seatToken !== occ.reconnectToken) {
+      // A re-join from the SAME connection that already owns this seat (React
+      // StrictMode double-invoke, re-navigation, a fast retry) needs no token.
+      // Only a DIFFERENT socket reclaiming a guest seat must present it (SEC-004).
+      const sameConnection = joinedRoom === room.code && playerId === resolvedPlayerId
+      if (
+        !authedMatch &&
+        !sameConnection &&
+        occ.reconnectToken &&
+        parsed.data.seatToken !== occ.reconnectToken
+      ) {
         return cb({ ok: false, error: 'reconnect token required' })
       }
       setConnected(room, resolvedPlayerId, true)

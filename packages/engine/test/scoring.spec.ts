@@ -114,6 +114,25 @@ describe('scoring', () => {
     expect(r.awardedRaw.EW).toBe(132 + 30) // takes bidder cards (30); belot stays with NS
   })
 
+  it('belot is not double-counted when it also rides in the announcements list', () => {
+    // The match layer appends a {kind:"belot"} entry to announcements (so the
+    // client can show a live banner) AND passes belotDeclaredBy. Belot must
+    // still score 20, not 40.
+    const r = scoreHand({
+      contract: 'H',
+      bidder: 0, // NS
+      multiplier: 1,
+      trickPoints: { NS: 90, EW: 62 },
+      tricksWon: { NS: 5, EW: 3 },
+      lastTrickWinnerTeam: 'NS',
+      announcements: [{ kind: 'belot', seat: 0, suit: 'H', points: 20 }],
+      belotDeclaredBy: 0,
+    })
+    expect(r.belotPoints).toEqual({ NS: 20, EW: 0 })
+    expect(r.announcementPoints).toEqual({ NS: 0, EW: 0 }) // belot NOT summed here
+    expect(r.awardedRaw.NS).toBe(120) // 100 cards+last + 20 belot (not 140)
+  })
+
   it('exactly tied totals → suspended (висяща), bidder scores 0, defenders keep own', () => {
     const r = scoreHand({
       contract: 'H',

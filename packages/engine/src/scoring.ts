@@ -64,6 +64,10 @@ export function scoreHand(input: HandInputs): HandResult {
   let annNS = 0
   let annEW = 0
   for (const a of input.announcements) {
+    // Belot is scored separately below via `belotDeclaredBy`. The match layer
+    // appends a {kind:'belot'} entry to the announcements list so the client can
+    // pop a live banner mid-hand — skip it here or it would be counted twice.
+    if (a.kind === 'belot') continue
     const t = teamOf(a.seat)
     const pts = a.points // announcements not doubled in NT (already disabled there)
     if (t === 'NS') annNS += pts

@@ -5,7 +5,9 @@ import { Server as SocketIOServer } from 'socket.io'
 import { customAlphabet } from 'nanoid'
 import { z } from 'zod'
 import {
+  debugCanWrite,
   deleteUserAccount,
+  isSupabaseConfigured,
   persistMatchRow,
   reportTournamentWinner,
   verifyAccessToken,
@@ -210,6 +212,21 @@ app.addHook('onSend', async (req, reply) => {
 
 // Minimal health check — no internal state exposed.
 app.get('/health', async () => ({ ok: true }))
+
+// Diagnostic: is match persistence actually working? Reports whether the
+// service-role client is configured and can write. No secrets exposed.
+app.get('/debug/persist', async (req, reply) => {
+  if (!allowRoomLookup(req.ip)) return reply.code(429).send({ error: 'too many requests' })
+  if (!isSupabaseConfigured) {
+    return {
+      configured: false,
+      canWrite: false,
+      reason: 'SUPABASE_URL and/or SUPABASE_SERVICE_ROLE_KEY not set on the server',
+    }
+  }
+  const res = await debugCanWrite()
+  return { configured: true, ...res }
+})
 
 const CreateRoomBody = z.object({ hostId: z.string().min(1) })
 app.post('/rooms', async (req, reply) => {

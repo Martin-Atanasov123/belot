@@ -134,6 +134,34 @@ export async function persistMatchRow(input: MatchRowInput): Promise<string | nu
   }
 }
 
+// Diagnostic only: verifies the service-role client can actually WRITE to
+// public.matches (i.e. SUPABASE_URL + a real service_role key are set and
+// reachable). Inserts a throwaway row and deletes it. Leaks no secrets.
+export async function debugCanWrite(): Promise<{ canWrite: boolean; error?: string }> {
+  if (!supabaseAdmin) return { canWrite: false, error: 'supabaseAdmin not configured' }
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('matches')
+      .insert({
+        room_code: 'DIAGTEST',
+        score_ns: 0,
+        score_ew: 0,
+        winner_team: 'NS',
+        hand_count: 1,
+        settings: {},
+        summary: {},
+        started_at: new Date().toISOString(),
+      })
+      .select('id')
+      .maybeSingle()
+    if (error) return { canWrite: false, error: error.message }
+    if (data?.id) await supabaseAdmin.from('matches').delete().eq('id', data.id as string)
+    return { canWrite: true }
+  } catch (e) {
+    return { canWrite: false, error: String(e) }
+  }
+}
+
 // Permanently delete a user's auth account. Cascades to public.profiles
 // (on delete cascade); match/tournament references are set null so history is
 // preserved anonymously. Returns ok/err. Never throws.

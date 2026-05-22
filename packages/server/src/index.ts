@@ -21,6 +21,7 @@ import {
   addBot,
   addSpectator,
   allSeatsFilled,
+  anyHumanConnected,
   applyAction,
   autoPlay,
   botAction,
@@ -311,7 +312,10 @@ io.use(async (socket, next) => {
 })
 
 const TURN_TIMER_MS = 30_000
-const ROOM_EMPTY_GRACE_MS = 60_000
+// Grace window before an abandoned room (no connected humans) is deleted. Also
+// the reconnect window: a player who refreshes has this long to come back before
+// the room — and its game — is voided. 30s per product decision.
+const ROOM_EMPTY_GRACE_MS = 30_000
 const BOT_TURN_DELAY_MS = 750
 const TRICK_LINGER_MS = 1500
 
@@ -402,6 +406,10 @@ function maybePersistMatch(room: Room): void {
   if (!room.snapshot || room.snapshot.phase !== 'GAME_OVER') return
   room.persisted = true
 
+  // Don't count a game nobody finished — if every human left and bots played it
+  // out, the result is meaningless (the person quit). See afterTransition guard.
+  if (!anyHumanConnected(room)) return
+
   const uid = (s: Seat) => room.seats[s]?.userId ?? null
   const name = (s: Seat) => room.seats[s]?.nickname ?? null
   const anyAuthed = ([0, 1, 2, 3] as Seat[]).some((s) => uid(s) !== null)
@@ -440,6 +448,18 @@ function maybePersistMatch(room: Room): void {
 function afterTransition(room: Room) {
   broadcastRoomState(room)
   broadcastViews(room)
+
+  // Abandoned table: every human left and only bots remain. Freeze the game —
+  // don't let bots play it to the end (and don't persist it). The empty-room
+  // timer deletes the room after the grace window (allowing a quick reconnect).
+  if (room.snapshot && room.snapshot.phase !== 'GAME_OVER' && !anyHumanConnected(room)) {
+    clearTimer(room)
+    clearBotTimer(room)
+    clearTrickResolveTimer(room)
+    if (noOccupantsConnected(room)) scheduleEmptyTimer(room)
+    return
+  }
+
   maybePersistMatch(room)
 
   if (trickIsPending(room)) {
@@ -711,7 +731,10 @@ io.on('connection', (socket) => {
     const seatToken = seat !== null ? room.seats[seat]?.reconnectToken ?? null : null
     cb({ ok: true, seat, state: publicState(room), seatToken })
     broadcastRoomState(room)
-    if (room.snapshot) broadcastViews(room)
+    // Resume the game loop on (re)join. If the table had been frozen because
+    // every human left (bots paused), a returning player re-arms the bot/turn
+    // timers here so play continues instead of getting stuck.
+    if (room.snapshot) afterTransition(room)
 
     // Matchmaking auto-start: when this fills the room, kick the game off
     // without waiting for anyone to click "Start".
@@ -891,6 +914,13 @@ io.on('connection', (socket) => {
       setConnected(room, playerId, false)
     }
     broadcastRoomState(room)
+    // If the last human left, stop the bots immediately so they don't finish
+    // (and bank) a game nobody's in — and start the room's deletion countdown.
+    if (!anyHumanConnected(room)) {
+      clearTimer(room)
+      clearBotTimer(room)
+      clearTrickResolveTimer(room)
+    }
     if (noOccupantsConnected(room)) scheduleEmptyTimer(room)
   })
 })

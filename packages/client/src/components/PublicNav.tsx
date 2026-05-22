@@ -52,6 +52,7 @@ export function PublicNav({ overHero = false }: { overHero?: boolean }) {
 
           {/* Center nav — desktop only */}
           <nav className="hidden md:flex items-center gap-1">
+            <NavItem to="/tablo" label={t('nav.dashboard')} />
             <NavItem to="/rules" label={t('nav.rules')} />
             <NavItem to="/klasacia" label={t('nav.leaderboard')} />
             <NavItem to="/premium" label={t('nav.premium')} />
@@ -100,6 +101,7 @@ export function PublicNav({ overHero = false }: { overHero?: boolean }) {
               </button>
             </div>
             <nav className="flex-1 flex flex-col items-center justify-center gap-5 font-display text-2xl">
+              <MobileLink to="/tablo" label={t('nav.dashboard')} />
               <MobileLink to="/rules" label={t('nav.rules')} />
               <MobileLink to="/klasacia" label={t('nav.leaderboard')} />
               <MobileLink to="/premium" label={t('nav.premium')} />

@@ -122,6 +122,9 @@ export const bg = {
   'lobby.capotDoubleHint':'Изкл. = бонусът от 90 точки остава фиксиран',
 
   'table.room':          'Стая',
+  'table.humansShort':   'хора',
+  'table.botsShort':     'ботове',
+  'table.tableComposition': 'Истински играчи спрямо ботове на масата',
   'table.handLabel':     'Раздаване',
   'table.handNo':        '№ {n}',
   'table.bidding':       'Наддаване',
@@ -257,6 +260,11 @@ export const bg = {
   'tablo.statsTotal':    'Общо игри',
   'tablo.inGame':        'В игра',
   'tablo.spectate':      'Гледай',
+  'tablo.withFriends':   'С приятели',
+  'tablo.withFriendsHint':'Създай стая и сподели линка — приятелите влизат веднага.',
+  'tablo.orJoinCode':    'или с код',
+  'tablo.soloTitle':     'Срещу други онлайн',
+  'tablo.soloHint':      'Намираме ти други играчи. Ако не се съберат 4-ма, ботове допълват.',
 
   // Profile (spec §13)
   'profile.stats':       'Статистика',

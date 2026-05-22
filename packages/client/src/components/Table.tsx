@@ -130,6 +130,11 @@ export function Table() {
   const inBidding = view.phase === 'BIDDING'
   const inPlay = view.phase === 'PLAYING'
 
+  // Table composition — how many seats are real people vs bots. Especially
+  // useful in quick matches so you know who you're actually playing with.
+  const humanCount = room.seats.filter((s) => !s.isBot && s.nickname !== null).length
+  const botCount = room.seats.filter((s) => s.isBot).length
+
   const onPlay = (card: Card) => {
     if (mySeat === null) return // spectators can't play
     void send({ type: 'PLAY', seat: mySeat, card })
@@ -245,6 +250,17 @@ export function Table() {
             <div className="min-w-0">
               <div className="eyebrow text-ash leading-none text-[9px] sm:text-[11px]">{t('table.room')}</div>
               <div className="font-mono text-brass tracking-[0.22em] sm:tracking-[0.28em] text-xs sm:text-base">{room.code}</div>
+            </div>
+            {/* Real-people vs bots composition */}
+            <div
+              className="flex items-center gap-1 font-mono text-[9px] sm:text-[11px] tracking-[0.12em] leading-none"
+              title={t('table.tableComposition')}
+            >
+              <span className="text-cream/85">{humanCount}</span>
+              <span className="text-ash uppercase">{t('table.humansShort')}</span>
+              <span className="text-brass/40">·</span>
+              <span className="text-brass-hi">{botCount}</span>
+              <span className="text-ash uppercase">{t('table.botsShort')}</span>
             </div>
             <div className="hidden md:block ml-2">
               <div className="eyebrow text-ash leading-none">{t('table.handLabel')}</div>

@@ -166,30 +166,56 @@ export function Tablo() {
           </div>
         </motion.div>
 
-        {/* Quick actions — primary CTA + secondary */}
+        {/* Two ways to play, kept in separate labelled cards so the "with
+            friends" flow (create / join by code) isn't lost among the solo
+            matchmaking options. */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.08, duration: 0.5 }}
-          className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-8"
+          className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-8"
         >
-          <button onClick={onCreate} disabled={busy} className="btn-brass">
-            {busy ? t('landing.creating') : t('tablo.newRoom')}
-          </button>
-          <div className="flex gap-2">
-            <input
-              value={joinCode}
-              onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-              maxLength={6}
-              placeholder={t('landing.codePh')}
-              className="input-salon flex-1 font-mono text-center tracking-[0.32em] uppercase"
-            />
-            <button onClick={onJoin} className="btn-ghost shrink-0">
-              {t('landing.join')}
+          {/* ── With friends: create a room or join by code ── */}
+          <div className="plate p-5 sm:p-6 flex flex-col gap-3">
+            <div>
+              <div className="eyebrow eyebrow-active">{t('tablo.withFriends')}</div>
+              <p className="font-display italic text-cream/55 text-xs mt-1">
+                {t('tablo.withFriendsHint')}
+              </p>
+            </div>
+            <button onClick={onCreate} disabled={busy} className="btn-brass w-full">
+              {busy ? t('landing.creating') : t('tablo.newRoom')}
             </button>
+            <div className="flex items-center gap-2">
+              <div className="h-px flex-1 bg-brass/15" />
+              <span className="font-mono text-[9px] tracking-[0.2em] uppercase text-ash">
+                {t('tablo.orJoinCode')}
+              </span>
+              <div className="h-px flex-1 bg-brass/15" />
+            </div>
+            <div className="flex gap-2">
+              <input
+                value={joinCode}
+                onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                maxLength={6}
+                placeholder={t('landing.codePh')}
+                className="input-salon flex-1 font-mono text-center tracking-[0.32em] uppercase"
+              />
+              <button onClick={onJoin} className="btn-ghost shrink-0">
+                {t('landing.join')}
+              </button>
+            </div>
           </div>
-          <div className="flex flex-col gap-1.5">
-            <button onClick={onQuickPlay} className="btn-ghost relative">
+
+          {/* ── Quick match: against other players online (bots optional) ── */}
+          <div className="plate p-5 sm:p-6 flex flex-col gap-3">
+            <div>
+              <div className="eyebrow">{t('tablo.soloTitle')}</div>
+              <p className="font-display italic text-cream/55 text-xs mt-1">
+                {t('tablo.soloHint')}
+              </p>
+            </div>
+            <button onClick={onQuickPlay} className="btn-ghost w-full relative">
               {mmStatus === 'searching' ? (
                 <span className="flex items-center justify-center gap-2">
                   <Spinner />
@@ -213,7 +239,7 @@ export function Tablo() {
                       key={opt.label}
                       type="button"
                       onClick={() => setBotFill(opt.v)}
-                      className={`flex-1 px-2 py-0.5 rounded font-mono text-[9px] tracking-[0.12em] uppercase border transition ${
+                      className={`flex-1 px-2 py-1 rounded font-mono text-[9px] tracking-[0.12em] uppercase border transition ${
                         active
                           ? 'bg-brass/15 border-brass text-brass-hi'
                           : 'border-ash/25 text-ash hover:text-cream hover:border-cream/40'

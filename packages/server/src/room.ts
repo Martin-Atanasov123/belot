@@ -77,6 +77,17 @@ export function noOccupantsConnected(room: Room): boolean {
   return true
 }
 
+// True if at least one seated, connected, non-bot human is present. When this
+// is false the table is effectively abandoned (only bots remain) — we stop the
+// bots and don't count the result, since no real player is playing it out.
+export function anyHumanConnected(room: Room): boolean {
+  for (const s of [0, 1, 2, 3] as Seat[]) {
+    const occ = room.seats[s]
+    if (occ && !occ.isBot && occ.connected) return true
+  }
+  return false
+}
+
 // True when every seat is filled AND every human in it is connected (bots
 // always count as connected). Used by matchmaking's auto-start trigger.
 export function everyoneConnected(room: Room): boolean {

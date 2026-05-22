@@ -123,6 +123,9 @@ export const en: Record<MessageKey, string> = {
   'lobby.capotDoubleHint':'Off = the 90-point bonus stays fixed',
 
   'table.room':          'Room',
+  'table.humansShort':   'humans',
+  'table.botsShort':     'bots',
+  'table.tableComposition': 'Real players vs bots at the table',
   'table.handLabel':     'Deal',
   'table.handNo':        '№ {n}',
   'table.bidding':       'Bidding',
@@ -258,6 +261,11 @@ export const en: Record<MessageKey, string> = {
   'tablo.statsTotal':    'Total games',
   'tablo.inGame':        'In game',
   'tablo.spectate':      'Watch',
+  'tablo.withFriends':   'With friends',
+  'tablo.withFriendsHint':'Create a room and share the link — friends join instantly.',
+  'tablo.orJoinCode':    'or with a code',
+  'tablo.soloTitle':     'Against others online',
+  'tablo.soloHint':      'We’ll find you other players. If 4 don’t gather, bots fill in.',
 
   // Profile
   'profile.stats':       'Stats',

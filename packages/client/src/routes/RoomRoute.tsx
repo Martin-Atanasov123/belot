@@ -12,7 +12,17 @@ import { ErrorScreen } from '../components/ErrorScreen.js'
 
 type Mode = 'play' | 'spectate'
 
+// Remount the room view whenever the room code changes. Without a key, React
+// Router reuses this component across /r/A → /r/B navigations, so per-room UI
+// state (chosen / mode / nick / spectate-fallback) leaks between rooms — e.g. a
+// "spectate" choice in one room sticks and you can only watch every room after.
+// Keying by code forces a fresh mount so all that state re-derives from the URL.
 export function RoomRoute() {
+  const { code } = useParams<{ code: string }>()
+  return <RoomRouteInner key={code ?? 'none'} />
+}
+
+function RoomRouteInner() {
   const t = useT()
   const { code } = useParams<{ code: string }>()
   const [search] = useSearchParams()

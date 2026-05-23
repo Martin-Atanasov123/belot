@@ -47,8 +47,13 @@ export function Lobby() {
   const t = useT()
   const room = useGame((s) => s.room)!
   const amHost = useGame((s) => s.amHost)
+  const mySeat = useGame((s) => s.mySeat)
   const start = useGame((s) => s.start)
   const addBot = useGame((s) => s.addBot)
+  const voteBots = useGame((s) => s.voteBots)
+  // Quick-match rooms are public lobbies with a bot vote; private rooms have a
+  // host who controls bots + start. Drives which controls show below.
+  const isQuick = room.isQuickMatch
   const url = window.location.href.split('?')[0] ?? window.location.href
   const allFilled = room.seats.every((s) => s.nickname !== null)
   const filled = room.seats.filter((s) => s.nickname !== null).length
@@ -99,6 +104,9 @@ export function Lobby() {
           <div className="font-mono text-2xl sm:text-3xl text-brass-hi tracking-[0.32em] mt-1">
             {room.code}
           </div>
+          <div className="mt-2 inline-block font-mono text-[9px] tracking-[0.22em] uppercase px-2 py-0.5 rounded border border-brass/30 text-ash">
+            {isQuick ? t('lobby.quickBadge') : t('lobby.privateBadge')}
+          </div>
         </motion.div>
 
         {/* Seats display — dual layout:
@@ -115,7 +123,7 @@ export function Lobby() {
           <div className="hidden sm:block">
             <OvalTable
               seats={room.seats}
-              amHost={amHost}
+              amHost={amHost && !isQuick}
               onAddBot={(seat: SeatNum) => void addBot(seat)}
               tWaiting={t('lobby.free')}
               tBot={t('common.bot')}
@@ -128,7 +136,7 @@ export function Lobby() {
           <div className="sm:hidden">
             <MobileSeatList
               seats={room.seats}
-              amHost={amHost}
+              amHost={amHost && !isQuick}
               onAddBot={(seat: SeatNum) => void addBot(seat)}
               tWaiting={t('lobby.free')}
               tBot={t('common.bot')}
@@ -162,33 +170,54 @@ export function Lobby() {
             </div>
           </div>
 
-          <div className="flex items-stretch gap-2">
-            <div className="flex-1 plate-cream px-3 py-2 min-w-0">
-              <div className="eyebrow text-stone-700 text-[9px]">{t('lobby.invite')}</div>
-              <code className="font-mono text-stone-900 text-[11px] sm:text-sm truncate block">
-                {url}
-              </code>
+          {/* Invite link — private rooms only (quick match is public). */}
+          {!isQuick && (
+            <div className="flex items-stretch gap-2">
+              <div className="flex-1 plate-cream px-3 py-2 min-w-0">
+                <div className="eyebrow text-stone-700 text-[9px]">{t('lobby.invite')}</div>
+                <code className="font-mono text-stone-900 text-[11px] sm:text-sm truncate block">
+                  {url}
+                </code>
+              </div>
+              <button onClick={onCopy} className="btn-brass shrink-0">
+                {copied ? t('lobby.copied') : t('lobby.copy')}
+              </button>
             </div>
-            <button onClick={onCopy} className="btn-brass shrink-0">
-              {copied ? t('lobby.copied') : t('lobby.copy')}
-            </button>
-          </div>
+          )}
 
-          {amHost && <RulesPanel />}
+          {amHost && !isQuick && <RulesPanel />}
 
           <Flourish className="w-40 mx-auto text-brass/40 mt-1" />
 
-          <button
-            onClick={() => void start()}
-            disabled={!allFilled}
-            className="btn-brass w-full"
-          >
-            {allFilled ? t('lobby.start') : t('lobby.waiting', { n: 4 - filled })}
-          </button>
-          {!amHost && allFilled && (
-            <div className="text-center font-display italic text-cream/55 text-xs">
-              {t('lobby.hostWillStart')}
-            </div>
+          {isQuick ? (
+            // Quick match: 4 humans auto-start; otherwise vote to add bots (a
+            // fallback timer fills them after a short wait so it never stalls).
+            <>
+              {mySeat !== null && !allFilled && (
+                <button onClick={() => void voteBots()} className="btn-brass w-full">
+                  {t('lobby.voteBots')} ({room.botVotes}/{room.botVoteThreshold})
+                </button>
+              )}
+              <div className="text-center font-display italic text-cream/55 text-xs">
+                {allFilled ? t('lobby.startingSoon') : t('lobby.quickWaitHint')}
+              </div>
+            </>
+          ) : (
+            // Private room: the host starts when ready.
+            <>
+              <button
+                onClick={() => void start()}
+                disabled={!allFilled}
+                className="btn-brass w-full"
+              >
+                {allFilled ? t('lobby.start') : t('lobby.waiting', { n: 4 - filled })}
+              </button>
+              {!amHost && allFilled && (
+                <div className="text-center font-display italic text-cream/55 text-xs">
+                  {t('lobby.hostWillStart')}
+                </div>
+              )}
+            </>
           )}
         </motion.div>
       </main>

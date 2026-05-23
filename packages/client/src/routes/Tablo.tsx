@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { PublicNav } from '../components/PublicNav.js'
 import { CornerOrnament, Flourish, Monogram } from '../components/Ornaments.js'
-import { createRoom, fetchRooms, type RoomListing } from '../lib/api.js'
+import { createRoom } from '../lib/api.js'
 import { getNickname, getPlayerIdFor } from '../lib/identity.js'
 import { useAuth } from '../lib/auth.js'
 import { useT } from '../i18n/index.js'
@@ -34,60 +34,7 @@ export function Tablo() {
   const [joinCode, setJoinCode] = useState('')
   const [stats, setStats] = useState<ProfileStats | null>(null)
   const [recent, setRecent] = useState<MatchRow[]>([])
-  const [activeRooms, setActiveRooms] = useState<RoomListing[]>([])
-  const [roomsLoaded, setRoomsLoaded] = useState(false)
-
-  // Matchmaking state — drives the Quick Play button into search / matched modes.
-  const mmStatus = useGame((s) => s.mmStatus)
-  const mmJoinedAt = useGame((s) => s.mmJoinedAt)
-  const mmMatch = useGame((s) => s.mmMatch)
   const findMatch = useGame((s) => s.findMatch)
-  const cancelFindMatch = useGame((s) => s.cancelFindMatch)
-  const clearMMMatch = useGame((s) => s.clearMMMatch)
-  const [mmElapsed, setMmElapsed] = useState(0)
-  // How long Quick Play waits for real opponents before filling with bots.
-  // 30s default · 2min · null = humans only (wait indefinitely).
-  const [botFill, setBotFill] = useState<number | null>(30_000)
-
-  // Tick a 1-Hz timer while searching so the button shows "13s · Cancel".
-  useEffect(() => {
-    if (mmStatus !== 'searching' || !mmJoinedAt) {
-      setMmElapsed(0)
-      return
-    }
-    const id = window.setInterval(() => {
-      setMmElapsed(Math.floor((Date.now() - mmJoinedAt) / 1000))
-    }, 1000)
-    setMmElapsed(Math.floor((Date.now() - mmJoinedAt) / 1000))
-    return () => window.clearInterval(id)
-  }, [mmStatus, mmJoinedAt])
-
-  // When the server pushes a match, navigate into the room and clear MM state.
-  useEffect(() => {
-    if (mmStatus !== 'matched' || !mmMatch) return
-    const code = mmMatch.code
-    clearMMMatch()
-    nav(`/r/${code}`)
-  }, [mmStatus, mmMatch, clearMMMatch, nav])
-
-  // Poll active rooms every 5 s so the list stays live.
-  useEffect(() => {
-    let cancelled = false
-    const load = () => {
-      void fetchRooms().then((list) => {
-        if (!cancelled) {
-          setActiveRooms(list)
-          setRoomsLoaded(true)
-        }
-      })
-    }
-    load()
-    const id = window.setInterval(load, 5_000)
-    return () => {
-      cancelled = true
-      window.clearInterval(id)
-    }
-  }, [])
 
   // Pull the signed-in user's recent matches + aggregate stats for the sidebar.
   useEffect(() => {
@@ -127,16 +74,14 @@ export function Tablo() {
   }
 
   const onQuickPlay = async () => {
-    if (mmStatus === 'searching') {
-      await cancelFindMatch()
-      return
-    }
     const playerId = user?.id ?? getPlayerIdFor(nick)
-    const r = await findMatch({ playerId, nickname: nick, botFillAfterMs: botFill })
-    if (!r.ok) {
-      // Silent fallback — the button stays idle. Server already logs the reason.
+    const r = await findMatch({ playerId, nickname: nick })
+    if (r.ok && r.code) {
+      // Land in the public lobby; players gather there and vote on bots.
+      nav(`/r/${r.code}`)
+    } else {
       // eslint-disable-next-line no-console
-      console.warn('[mm] findMatch failed:', r.error)
+      console.warn('[quickmatch] failed:', r.error)
     }
   }
 
@@ -207,153 +152,71 @@ export function Tablo() {
             </div>
           </div>
 
-          {/* ── Quick match: against other players online (bots optional) ── */}
-          <div className="plate p-5 sm:p-6 flex flex-col gap-3">
+          {/* ── Quick match: jump into a public lobby with whoever's online ── */}
+          <div className="plate p-5 sm:p-6 flex flex-col gap-3 justify-between">
             <div>
               <div className="eyebrow">{t('tablo.soloTitle')}</div>
               <p className="font-display italic text-cream/55 text-xs mt-1">
                 {t('tablo.soloHint')}
               </p>
             </div>
-            <button onClick={onQuickPlay} className="btn-ghost w-full relative">
-              {mmStatus === 'searching' ? (
-                <span className="flex items-center justify-center gap-2">
-                  <Spinner />
-                  <span className="font-mono text-[10px] tracking-[0.18em]">
-                    {t('mm.searching')} {mmElapsed}s · {t('mm.cancel')}
-                  </span>
-                </span>
-              ) : (
-                t('tablo.quickPlay')
-              )}
+            <button onClick={onQuickPlay} className="btn-ghost w-full">
+              {t('tablo.quickPlay')}
             </button>
-            {mmStatus !== 'searching' && (
-              <div className="flex items-center gap-1" title={t('mm.waitHint')}>
-                {([
-                  { v: 30_000 as number | null, label: t('mm.withBots') },
-                  { v: null as number | null, label: t('mm.withoutBots') },
-                ]).map((opt) => {
-                  const active = botFill === opt.v
-                  return (
-                    <button
-                      key={opt.label}
-                      type="button"
-                      onClick={() => setBotFill(opt.v)}
-                      className={`flex-1 px-2 py-1 rounded font-mono text-[9px] tracking-[0.12em] uppercase border transition ${
-                        active
-                          ? 'bg-brass/15 border-brass text-brass-hi'
-                          : 'border-ash/25 text-ash hover:text-cream hover:border-cream/40'
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  )
-                })}
-              </div>
-            )}
           </div>
         </motion.div>
 
         {/* Two-column area: active rooms + stats sidebar */}
         <div className="grid lg:grid-cols-[1fr_300px] gap-5 sm:gap-6">
-          {/* LEFT: active rooms */}
+          {/* LEFT: recent games */}
           <motion.section
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.16, duration: 0.5 }}
             className="plate p-5 sm:p-6"
           >
-            <div className="eyebrow mb-4">{t('tablo.activeRooms')}</div>
-            {!roomsLoaded ? (
-              <div className="flex justify-center py-10">
-                <span className="inline-block w-4 h-4 rounded-full border-2 border-brass/40 border-t-brass-hi animate-spin" />
-              </div>
-            ) : activeRooms.length === 0 ? (
+            <div className="eyebrow mb-4">{t('tablo.recentGames')}</div>
+            {recent.length === 0 ? (
               <div className="text-center py-10 font-display italic text-cream/55 text-sm">
-                {t('tablo.activeEmpty')}
+                {t('tablo.recentEmpty')}
               </div>
             ) : (
               <ul className="divide-y divide-brass/10">
-                {activeRooms.map((room) => {
-                  const filledCount = room.seats.filter((s) => s.nickname !== null).length
-                  const joinable = !room.inGame && filledCount < 4
-                  const spectatable = room.inGame && room.settings.allowSpectators
-                  const hostNick = room.seats.find((s) => s.nickname && !s.isBot)?.nickname ?? '—'
+                {recent.slice(0, 6).map((m) => {
+                  const team = user?.id ? playerTeam(m, user.id) : null
+                  if (!team) return null
+                  const won = team === m.winner_team
+                  const my = team === 'NS' ? m.score_ns : m.score_ew
+                  const opp = team === 'NS' ? m.score_ew : m.score_ns
+                  const oppNames =
+                    team === 'NS'
+                      ? [m.seat_e_name, m.seat_w_name].filter(Boolean) as string[]
+                      : [m.seat_n_name, m.seat_s_name].filter(Boolean) as string[]
                   return (
-                    <li
-                      key={room.code}
-                      className={`py-3 flex items-center gap-3 ${
-                        joinable ? 'border-l-2 border-brass pl-3 -ml-3' : ''
-                      }`}
-                    >
-                      <span className="font-mono text-sm text-brass tracking-[0.18em] shrink-0">
-                        {room.code}
-                      </span>
-                      <span className="font-mono text-xs text-ash shrink-0">{filledCount}/4</span>
-                      <span className="font-display italic text-cream/80 text-sm flex-1 truncate min-w-0">
-                        {hostNick}
-                      </span>
-                      <span className={`font-mono text-[10px] tracking-[0.1em] shrink-0 ${room.inGame ? 'text-ash' : 'text-cream/55'}`}>
-                        {room.inGame ? t('tablo.inGame') : `до ${room.settings.gameTo}`}
-                      </span>
-                      {(joinable || spectatable) && (
-                        <button
-                          onClick={() => nav(`/r/${room.code}`)}
-                          className="btn-ghost py-1 px-3 text-xs shrink-0"
+                    <li key={m.id} className="py-3 flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div
+                          className={`font-display italic text-sm ${
+                            won ? 'text-brass-hi' : 'text-cream/75'
+                          }`}
                         >
-                          {spectatable ? t('tablo.spectate') : t('landing.join')}
-                        </button>
-                      )}
+                          {won ? t('victory.title') : t('victory.defeatTitle')}
+                        </div>
+                        <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-ash mt-0.5 truncate">
+                          {oppNames.join(' · ') || '—'}
+                        </div>
+                      </div>
+                      <div className="font-mono text-sm shrink-0">
+                        <span className={won ? 'text-brass-hi' : 'text-cream'}>{my}</span>
+                        <span className="text-ash mx-1">:</span>
+                        <span className={won ? 'text-cream/70' : 'text-ember-hi'}>{opp}</span>
+                      </div>
                     </li>
                   )
                 })}
               </ul>
             )}
             <Flourish className="w-32 mx-auto text-brass/30 mt-6" />
-
-            <div className="mt-8">
-              <div className="eyebrow mb-3">{t('tablo.recentGames')}</div>
-              {recent.length === 0 ? (
-                <div className="text-center py-6 font-display italic text-cream/55 text-sm">
-                  {t('tablo.recentEmpty')}
-                </div>
-              ) : (
-                <ul className="divide-y divide-brass/10">
-                  {recent.slice(0, 5).map((m) => {
-                    const team = user?.id ? playerTeam(m, user.id) : null
-                    if (!team) return null
-                    const won = team === m.winner_team
-                    const my = team === 'NS' ? m.score_ns : m.score_ew
-                    const opp = team === 'NS' ? m.score_ew : m.score_ns
-                    const oppNames =
-                      team === 'NS'
-                        ? [m.seat_e_name, m.seat_w_name].filter(Boolean) as string[]
-                        : [m.seat_n_name, m.seat_s_name].filter(Boolean) as string[]
-                    return (
-                      <li key={m.id} className="py-3 flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <div
-                            className={`font-display italic text-sm ${
-                              won ? 'text-brass-hi' : 'text-cream/75'
-                            }`}
-                          >
-                            {won ? t('victory.title') : t('victory.defeatTitle')}
-                          </div>
-                          <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-ash mt-0.5 truncate">
-                            {oppNames.join(' · ') || '—'}
-                          </div>
-                        </div>
-                        <div className="font-mono text-sm shrink-0">
-                          <span className={won ? 'text-brass-hi' : 'text-cream'}>{my}</span>
-                          <span className="text-ash mx-1">:</span>
-                          <span className={won ? 'text-cream/70' : 'text-ember-hi'}>{opp}</span>
-                        </div>
-                      </li>
-                    )
-                  })}
-                </ul>
-              )}
-            </div>
           </motion.section>
 
           {/* RIGHT: stats sidebar */}
@@ -400,16 +263,6 @@ function StatRow({ label, value }: { label: string; value: string }) {
       <span className="font-display italic text-cream/70 text-sm">{label}</span>
       <span className="font-mono text-brass-hi text-lg">{value}</span>
     </div>
-  )
-}
-
-// Tiny brass spinner for the Quick Play button while in queue.
-function Spinner() {
-  return (
-    <span
-      aria-hidden
-      className="inline-block w-3 h-3 rounded-full border-2 border-brass/40 border-t-brass-hi animate-spin"
-    />
   )
 }
 

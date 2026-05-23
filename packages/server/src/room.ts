@@ -63,6 +63,14 @@ export type Room = {
   // Set once the finished match has been persisted to the DB, so a GAME_OVER
   // state that gets re-broadcast doesn't write the row more than once.
   persisted: boolean
+  // Quick-match (public) room: players land in the lobby and vote to add bots;
+  // a fallback timer fills them after a wait. Private rooms (created by a host
+  // via "Частна стая") have isQuickMatch=false and are controlled by the host.
+  isQuickMatch: boolean
+  // Seats that have voted to fill the empty seats with bots (quick-match only).
+  botVotes: Set<Seat>
+  // Fallback timer that auto-fills bots + starts a quick-match room after a wait.
+  quickFillTimer: NodeJS.Timeout | null
 }
 
 export function noOccupantsConnected(room: Room): boolean {
@@ -104,6 +112,9 @@ export type PublicRoomState = {
   inGame: boolean
   settings: RoomSettings
   spectatorCount: number
+  isQuickMatch: boolean
+  botVotes: number
+  botVoteThreshold: number
 }
 
 export function createRoom(code: string, hostId: string, settings: Partial<RoomSettings> = {}): Room {
@@ -121,7 +132,37 @@ export function createRoom(code: string, hostId: string, settings: Partial<RoomS
     trickResolveTimer: null,
     autoStartOnFill: false,
     persisted: false,
+    isQuickMatch: false,
+    botVotes: new Set<Seat>(),
+    quickFillTimer: null,
   }
+}
+
+// How many seats are held by humans (connected or not — they hold the seat).
+export function seatedHumanCount(room: Room): number {
+  let n = 0
+  for (const s of [0, 1, 2, 3] as Seat[]) {
+    const o = room.seats[s]
+    if (o && !o.isBot) n++
+  }
+  return n
+}
+
+// Majority of the humans currently at the table.
+export function botVoteThreshold(room: Room): number {
+  const h = seatedHumanCount(room)
+  return h <= 1 ? 1 : Math.floor(h / 2) + 1
+}
+
+// Votes that still come from a seat currently held by a human (drops votes from
+// players who left).
+export function botVoteCount(room: Room): number {
+  let n = 0
+  for (const s of room.botVotes) {
+    const o = room.seats[s]
+    if (o && !o.isBot) n++
+  }
+  return n
 }
 
 export function publicState(room: Room): PublicRoomState {
@@ -137,6 +178,9 @@ export function publicState(room: Room): PublicRoomState {
     inGame: room.snapshot !== null,
     settings: room.settings,
     spectatorCount: room.spectators.size,
+    isQuickMatch: room.isQuickMatch,
+    botVotes: botVoteCount(room),
+    botVoteThreshold: botVoteThreshold(room),
   }
 }
 

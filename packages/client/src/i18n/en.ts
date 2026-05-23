@@ -118,6 +118,11 @@ export const en: Record<MessageKey, string> = {
   'lobby.start':         'Start the game',
   'lobby.waiting':       'Waiting — {n} more',
   'lobby.hostWillStart': 'The host will start once the table is full…',
+  'lobby.privateBadge':  'Code only',
+  'lobby.quickBadge':    'Quick match',
+  'lobby.voteBots':      'Add bots',
+  'lobby.quickWaitHint': 'Waiting for players. Vote for bots or wait — 4 humans start it, otherwise bots fill in.',
+  'lobby.startingSoon':  'Table full — starting…',
   'lobby.rulesTitle':    'Table rules',
   'lobby.capotDouble':   'Capot is doubled by contra / re-contra',
   'lobby.capotDoubleHint':'Off = the 90-point bonus stays fixed',
@@ -248,7 +253,7 @@ export const en: Record<MessageKey, string> = {
 
   // Tablo / lobby hub
   'tablo.greeting':      'Welcome',
-  'tablo.newRoom':       'New room',
+  'tablo.newRoom':       'Private room',
   'tablo.joinRoom':      'Join room',
   'tablo.quickPlay':     'Quick match',
   'tablo.activeRooms':   'Active rooms',
@@ -262,10 +267,10 @@ export const en: Record<MessageKey, string> = {
   'tablo.inGame':        'In game',
   'tablo.spectate':      'Watch',
   'tablo.withFriends':   'With friends',
-  'tablo.withFriendsHint':'Create a room and share the link — friends join instantly.',
+  'tablo.withFriendsHint':'Create a room and send the link — playable only with the code.',
   'tablo.orJoinCode':    'or with a code',
   'tablo.soloTitle':     'Against others online',
-  'tablo.soloHint':      'We’ll find you other players. If 4 don’t gather, bots fill in.',
+  'tablo.soloHint':      'Join a shared table with others online. Vote for bots if 4 don’t gather.',
 
   // Profile
   'profile.stats':       'Stats',

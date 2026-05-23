@@ -27,6 +27,8 @@ import {
   applyAction,
   autoPlay,
   botAction,
+  botVoteCount,
+  botVoteThreshold,
   clearBotTimer,
   clearTimer,
   clearTrickResolveTimer,
@@ -48,7 +50,6 @@ import {
   trickIsPending,
   type Room,
 } from './room.js'
-import type { Socket } from 'socket.io'
 
 const PORT = Number(process.env.PORT ?? 3001)
 const HOST = process.env.HOST ?? '0.0.0.0'
@@ -351,6 +352,7 @@ function scheduleEmptyTimer(room: Room) {
     clearTimer(room)
     clearBotTimer(room)
     clearTrickResolveTimer(room)
+    if (room.quickFillTimer) clearTimeout(room.quickFillTimer)
     rooms.delete(room.code)
     app.log.info({ code: room.code }, 'deleted empty room')
   }, ROOM_EMPTY_GRACE_MS)
@@ -499,112 +501,56 @@ function afterTransition(room: Room) {
   }
 }
 
-// ── Matchmaking (Quick Play) ─────────────────────────────────────────────────
-// FIFO queue. Every MM_PAIRING_INTERVAL_MS the loop:
-//   1) Groups every 4 waiting players into a fresh auto-start room.
-//   2) Falls back to a bot-filled room for anyone waiting > MM_BOT_FILL_AFTER_MS.
-// The room's autoStartOnFill flag makes the game start automatically once
-// all 4 humans (or the lone human + 3 bots) have landed in the room.
+// ── Quick match (public lobby rooms) ─────────────────────────────────────────
+// "Quick match" finds an open public room (or makes one) and drops the player
+// into its LOBBY. They see who else arrives, can vote to add bots (majority of
+// seated humans), and a fallback timer fills bots + starts after a wait so it
+// never stalls. Four humans → the game auto-starts (autoStartOnFill).
 
-type MMEntry = {
-  socket: Socket
-  playerId: string
-  nickname: string
-  joinedAt: number
-  // How long to wait for 3 more humans before filling with bots. null = never
-  // (humans only — stay queued until a full table of real players forms).
-  botFillAfterMs: number | null
-}
+const QUICK_FILL_AFTER_MS = 30_000 // fallback: auto-fill bots + start after this
 
-const MM_PAIRING_INTERVAL_MS = 2_000
-const MM_BOT_FILL_AFTER_MS   = 30_000  // default + hard ceiling for "with bots"
-const MM_BOT_FILL_MAX_MS     = 600_000 // clamp ceiling for client-supplied values
-const MM_GROUP_SIZE          = 4
-// Graduated bot-fill (Phase-1 spec): the fewer real players are waiting, the
-// less point in holding out — so fill sooner. Both stay under the 30s ceiling.
-const MM_BOT_FILL_SOLO_MS    = 5_000   // a lone searcher → bots almost instantly
-const MM_BOT_FILL_GROUP_MS   = 15_000  // 2-3 waiting → give the human table a chance
-
-const mmQueue = new Map<string, MMEntry>() // keyed by socket.id
-
-function leaveMMQueue(socketId: string): void {
-  mmQueue.delete(socketId)
-}
-
-function startMatchmakingRoom(group: MMEntry[]): void {
-  if (!ensureRoomCapacity()) return // leave the group queued; retry next tick
+function findOrCreateQuickRoom(hostId: string): Room | null {
+  // Reuse an open public room so simultaneous searchers share one lobby.
+  for (const r of rooms.values()) {
+    if (r.isQuickMatch && !r.snapshot && findFreeSeat(r) !== null) return r
+  }
+  if (!ensureRoomCapacity()) return null
   const code = roomCode()
-  const host = group[0]!
-  const room = createRoom(code, host.playerId)
-  room.autoStartOnFill = true
+  const room = createRoom(code, hostId)
+  room.isQuickMatch = true
+  room.autoStartOnFill = true // 4 humans → start without needing a vote
   rooms.set(code, room)
-  // Schedule cleanup if no one actually joins (e.g. closed tab between match
-  // notification and navigation). cancelEmptyTimer fires inside room:join.
   scheduleEmptyTimer(room)
-
-  for (const e of group) {
-    mmQueue.delete(e.socket.id)
-    e.socket.emit('mm:matched', { code, withBots: false })
-  }
-  app.log.info({ code, players: group.length }, 'matchmaking: room created (humans)')
+  armQuickFillTimer(room)
+  app.log.info({ code }, 'quick-match room created')
+  return room
 }
 
-// Seat a group of 1-3 real players together and fill the remaining seats with
-// bots, so two matchmade humans share a table instead of getting separate
-// bot games.
-function startMatchmakingRoomWithBots(group: MMEntry[]): void {
-  if (group.length === 0) return
-  if (!ensureRoomCapacity()) return // retry next tick
-  const code = roomCode()
-  const host = group[0]!
-  const room = createRoom(code, host.playerId)
-  room.autoStartOnFill = true
-  rooms.set(code, room)
-  // Pre-seat bots in the HIGHEST seats so humans take the low ones on join
-  // (findFreeSeat returns the lowest free seat).
-  const botsNeeded = MM_GROUP_SIZE - group.length
-  for (let i = 0; i < botsNeeded; i++) {
-    addBot(room, (3 - i) as Seat, `Bot ${i + 1}`)
+// Fill the empty seats with bots and start (quick-match vote passed or timer fired).
+function fillBotsAndStart(room: Room): void {
+  if (room.snapshot) return
+  let botNum = ([0, 1, 2, 3] as Seat[]).filter((s) => room.seats[s]?.isBot).length
+  for (const s of [0, 1, 2, 3] as Seat[]) {
+    if (!room.seats[s]) addBot(room, s, `Bot ${++botNum}`)
   }
-  scheduleEmptyTimer(room)
-
-  for (const e of group) {
-    mmQueue.delete(e.socket.id)
-    e.socket.emit('mm:matched', { code, withBots: true })
+  if (!allSeatsFilled(room)) return
+  room.autoStartOnFill = false
+  if (room.quickFillTimer) {
+    clearTimeout(room.quickFillTimer)
+    room.quickFillTimer = null
   }
-  app.log.info({ code, humans: group.length, bots: botsNeeded }, 'matchmaking: room created (bot fill)')
+  const r = startGame(room)
+  if (r.ok) afterTransition(room)
 }
 
-function processMatchmaking(): void {
-  if (mmQueue.size === 0) return
-  // Drop disconnected sockets defensively.
-  for (const [id, e] of mmQueue) if (!e.socket.connected) mmQueue.delete(id)
-  if (mmQueue.size === 0) return
-
-  // Oldest-first ordering.
-  const entries = [...mmQueue.values()].sort((a, b) => a.joinedAt - b.joinedAt)
-
-  // 1) Full tables of 4 real players — instant, regardless of bot preference.
-  while (entries.length >= MM_GROUP_SIZE) {
-    const group = entries.splice(0, MM_GROUP_SIZE)
-    startMatchmakingRoom(group)
-  }
-
-  // 2) Leftover 1-3 humans → graduated bot-fill, but only for those who opted
-  //    into bots. "Without bots" searchers (botFillAfterMs === null) keep
-  //    waiting until a full human table forms.
-  const botOk = entries.filter((e) => e.botFillAfterMs !== null)
-  if (botOk.length === 0) return
-  const oldest = botOk[0]!
-  const base = botOk.length <= 1 ? MM_BOT_FILL_SOLO_MS : MM_BOT_FILL_GROUP_MS
-  // Never exceed the searcher's chosen ceiling (30s for "with bots").
-  const threshold = Math.min(base, oldest.botFillAfterMs!)
-  if (Date.now() - oldest.joinedAt >= threshold) {
-    startMatchmakingRoomWithBots(botOk.slice(0, MM_GROUP_SIZE))
-  }
+function armQuickFillTimer(room: Room): void {
+  if (room.quickFillTimer) return
+  room.quickFillTimer = setTimeout(() => {
+    room.quickFillTimer = null
+    if (room.snapshot || !anyHumanConnected(room)) return // started, or abandoned
+    fillBotsAndStart(room)
+  }, QUICK_FILL_AFTER_MS)
 }
-
-setInterval(processMatchmaking, MM_PAIRING_INTERVAL_MS).unref()
 
 io.on('connection', (socket) => {
   let joinedRoom: string | null = null
@@ -644,41 +590,42 @@ io.on('connection', (socket) => {
     cb({ ok: true })
   })
 
-  // ── mm:join / mm:leave (Quick Play) ──────────────────────────────────────────
+  // ── mm:join (Quick match) ────────────────────────────────────────────────────
+  // No more queue: find/create an open public room and hand back its code. The
+  // client then navigates to /r/<code> and lands in the lobby like any room.
   socket.on('mm:join', (raw, cb: (resp: unknown) => void) => {
     if (!checkRateLimit(rl.joinSpectate, 5, 10_000)) {
       return cb({ ok: false, error: 'too fast' })
     }
     const parsed = z
-      .object({
-        playerId: z.string().min(1),
-        nickname: z.string().min(1).max(20),
-        // Wait time before bots fill the table. null = humans only (wait forever).
-        botFillAfterMs: z.number().int().min(0).max(MM_BOT_FILL_MAX_MS).nullable().optional(),
-      })
+      .object({ playerId: z.string().min(1), nickname: z.string().min(1).max(20) })
       .safeParse(raw)
     if (!parsed.success) return cb({ ok: false, error: 'invalid payload' })
 
-    if (mmQueue.has(socket.id)) return cb({ ok: false, error: 'already in queue' })
-
-    const resolvedPlayerId = currentUser()?.id ?? parsed.data.playerId
-    const safeNickname = sanitizeNickname(parsed.data.nickname) || 'Player'
-    const botFillAfterMs =
-      parsed.data.botFillAfterMs === undefined ? MM_BOT_FILL_AFTER_MS : parsed.data.botFillAfterMs
-    mmQueue.set(socket.id, {
-      socket,
-      playerId: resolvedPlayerId,
-      nickname: safeNickname,
-      joinedAt: Date.now(),
-      botFillAfterMs,
-    })
-    // Tell the searcher how many others are waiting (live feedback).
-    cb({ ok: true, searching: mmQueue.size })
+    const hostId = currentUser()?.id ?? parsed.data.playerId
+    const room = findOrCreateQuickRoom(hostId)
+    if (!room) return cb({ ok: false, error: 'server at capacity — try again shortly' })
+    cb({ ok: true, code: room.code })
   })
 
-  socket.on('mm:leave', (_raw, cb: (resp: unknown) => void) => {
-    leaveMMQueue(socket.id)
+  // ── room:voteBots (quick match only) ─────────────────────────────────────────
+  // A seated human votes to fill the empty seats with bots. When a majority of
+  // the seated humans agree, bots fill and the game starts.
+  socket.on('room:voteBots', (_raw, cb: (resp: unknown) => void) => {
+    if (!joinedRoom || !playerId) return cb({ ok: false, error: 'not in a room' })
+    const room = rooms.get(joinedRoom)
+    if (!room) return cb({ ok: false, error: 'room gone' })
+    if (!room.isQuickMatch) return cb({ ok: false, error: 'voting is only for quick match' })
+    if (room.snapshot) return cb({ ok: false, error: 'game already started' })
+    const seat = findSeatByPlayerId(room, playerId)
+    if (seat === null) return cb({ ok: false, error: 'only seated players can vote' })
+    room.botVotes.add(seat)
     cb({ ok: true })
+    if (botVoteCount(room) >= botVoteThreshold(room)) {
+      fillBotsAndStart(room)
+    } else {
+      broadcastRoomState(room)
+    }
   })
 
   // ── room:join ────────────────────────────────────────────────────────────────
@@ -919,9 +866,6 @@ io.on('connection', (socket) => {
 
   // ── disconnect ───────────────────────────────────────────────────────────────
   socket.on('disconnect', () => {
-    // Drop from matchmaking queue if they were waiting.
-    leaveMMQueue(socket.id)
-
     if (!joinedRoom || !playerId) return
     const room = rooms.get(joinedRoom)
     if (!room) return
@@ -958,6 +902,7 @@ async function shutdown(signal: string): Promise<void> {
     clearBotTimer(room)
     clearTrickResolveTimer(room)
     if (room.emptyTimer) clearTimeout(room.emptyTimer)
+    if (room.quickFillTimer) clearTimeout(room.quickFillTimer)
   }
   rooms.clear()
   try {

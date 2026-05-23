@@ -117,6 +117,11 @@ export const bg = {
   'lobby.start':         'Започни играта',
   'lobby.waiting':       'Изчакване — още {n}',
   'lobby.hostWillStart': 'Домакинът ще започне, щом масата се запълни…',
+  'lobby.privateBadge':  'Само с код',
+  'lobby.quickBadge':    'Бързо намиране',
+  'lobby.voteBots':      'Добави ботове',
+  'lobby.quickWaitHint': 'Чакаме играчи. Гласувай за ботове или изчакай — при 4-ма масата тръгва, иначе ботове допълват.',
+  'lobby.startingSoon':  'Масата е пълна — започваме…',
   'lobby.rulesTitle':    'Правила на масата',
   'lobby.capotDouble':   'Капото се удвоява от контра/реконтра',
   'lobby.capotDoubleHint':'Изкл. = бонусът от 90 точки остава фиксиран',
@@ -247,7 +252,7 @@ export const bg = {
 
   // Tablo / lobby hub (spec §8)
   'tablo.greeting':      'Добре дошъл',
-  'tablo.newRoom':       'Нова стая',
+  'tablo.newRoom':       'Частна стая',
   'tablo.joinRoom':      'Присъедини се',
   'tablo.quickPlay':     'Бързо намиране',
   'tablo.activeRooms':   'Активни стаи',
@@ -261,10 +266,10 @@ export const bg = {
   'tablo.inGame':        'В игра',
   'tablo.spectate':      'Гледай',
   'tablo.withFriends':   'С приятели',
-  'tablo.withFriendsHint':'Създай стая и сподели линка — приятелите влизат веднага.',
+  'tablo.withFriendsHint':'Създай стая и изпрати линка — играе се само с кода.',
   'tablo.orJoinCode':    'или с код',
   'tablo.soloTitle':     'Срещу други онлайн',
-  'tablo.soloHint':      'Намираме ти други играчи. Ако не се съберат 4-ма, ботове допълват.',
+  'tablo.soloHint':      'Влизаш в обща маса с други онлайн. Гласувате за ботове, ако не се съберат 4-ма.',
 
   // Profile (spec §13)
   'profile.stats':       'Статистика',

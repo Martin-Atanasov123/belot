@@ -2,7 +2,9 @@ services:
   - type: web
     name: belot-server
     runtime: docker
-    plan: free
+    # Always-on. The free plan sleeps after 15 min (~30 s cold start) — a broken
+    # first impression for new players. Starter ($7/mo) keeps the server warm.
+    plan: starter
     dockerfilePath: ./Dockerfile
     envVars:
       - key: NODE_ENV
@@ -10,5 +12,14 @@ services:
       - key: PORT
         value: 3001
       - key: CORS_ORIGIN
-        sync: false  # set this in the Render dashboard to your Netlify URL
+        sync: false  # set in the Render dashboard to your Netlify URL
+      # Supabase — required for match persistence (B1) and JWT auth. Without
+      # these the server runs guest-only and records NO matches. Set the values
+      # in the Render dashboard (secrets, not committed).
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
     healthCheckPath: /health

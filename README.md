@@ -162,18 +162,25 @@ npx vitest
 
 **Frontend → Netlify · Backend → Render**
 
-These two providers give you a free, working 4-player game with no credit card,
-on the condition that Render Free sleeps after 15 minutes of inactivity (first
-request after sleep takes ~30 s to wake the server).
+The server runs on Render's **Starter** plan ($7/mo) so it stays always-on — no
+sleep, no ~30 s cold start. (The Free plan works but sleeps after 15 min of
+inactivity, which is a broken first impression for new players.)
 
 ### Backend on Render
 
 1. Push the repo to GitHub.
 2. <https://render.com> → **New** → **Web Service** → connect the repo.
-3. Render reads `render.yaml`. Confirm: runtime = **Docker**, plan = **Free**.
-4. Wait for the build (~3–5 min). The service URL looks like
+3. Render reads `render.yaml`. Confirm: runtime = **Docker**, plan = **Starter**.
+4. Set the backend environment variables (Render dashboard → service →
+   **Environment**) — these are `sync: false` in `render.yaml`, so values live
+   only in the dashboard:
+   - `CORS_ORIGIN` = your Netlify URL (see CORS below)
+   - `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET` —
+     **required**; without them the server runs guest-only and records no
+     matches (no leaderboard, no tournament results).
+5. Wait for the build (~3–5 min). The service URL looks like
    `https://belot-<random>.onrender.com`.
-5. Open `<that-url>/health` — you should see `{"ok":true,"rooms":0}`.
+6. Open `<that-url>/health` — you should see `{"ok":true,"rooms":0}`.
 
 ### Frontend on Netlify
 

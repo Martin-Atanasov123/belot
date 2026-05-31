@@ -1,0 +1,577 @@
+{
+  "C:\\Users\\atana\\Music\\belot\\packages\\engine\\package.json": {
+    "mtime": 1778884163.1655402,
+    "ast_hash": "e385e8e6bcd16c2d151f7c03c108702a",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\engine\\tsconfig.json": {
+    "mtime": 1778883696.125462,
+    "ast_hash": "37ff33faf08221531679085169fef0cf",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\engine\\vitest.config.ts": {
+    "mtime": 1778884281.6115308,
+    "ast_hash": "b4a9d1aedb33645003ee8d58fc7694d3",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\engine\\src\\announcements.ts": {
+    "mtime": 1778960490.214627,
+    "ast_hash": "9a09ec837b7bccd9c43db6263f2edb7b",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\engine\\src\\bidding.ts": {
+    "mtime": 1778883790.642094,
+    "ast_hash": "4fa87226cdf3c6efec2205c2a17d808e",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\engine\\src\\deck.ts": {
+    "mtime": 1778925861.736914,
+    "ast_hash": "61886f5bd76ef55211e8eea4891980c2",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\engine\\src\\index.ts": {
+    "mtime": 1778883931.8222845,
+    "ast_hash": "0a79bf65533ba0e7015e9f29584c5584",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\engine\\src\\legalMoves.ts": {
+    "mtime": 1778958766.9325852,
+    "ast_hash": "d7bcdfff9f1b75fcbfb9f3a77f2cd3c6",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\engine\\src\\match.ts": {
+    "mtime": 1779045900.3389115,
+    "ast_hash": "264f62bc4f2b8a63ff5e689049db72d1",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\engine\\src\\ranking.ts": {
+    "mtime": 1778957515.3196678,
+    "ast_hash": "424db1235b1d00fe8c130ef17a29be0a",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\engine\\src\\rng.ts": {
+    "mtime": 1778883708.8836198,
+    "ast_hash": "475a45d570acb155eb5a5977ab949c66",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\engine\\src\\scoring.ts": {
+    "mtime": 1779462040.5761275,
+    "ast_hash": "68dd11f9c9a917b120afa70770cf853e",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\engine\\test\\announcements.spec.ts": {
+    "mtime": 1778960539.642051,
+    "ast_hash": "5b3274f43de9b5422d08f1a0150a35e8",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\engine\\test\\bidding.spec.ts": {
+    "mtime": 1778884240.415969,
+    "ast_hash": "fb8a79d59d1e13e140ad3095f8a57588",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\engine\\test\\coverage-gaps.spec.ts": {
+    "mtime": 1778923740.1344855,
+    "ast_hash": "3e5ffb5ddf2a4d7ffb386e0be2f7ce33",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\engine\\test\\deck.spec.ts": {
+    "mtime": 1778883964.0178556,
+    "ast_hash": "ecfce58b6b9cf9821fca28a743c0a439",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\engine\\test\\legalMoves.spec.ts": {
+    "mtime": 1778958801.685227,
+    "ast_hash": "55055b9d2fa0a785ea33f3e5f097081b",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\engine\\test\\match.spec.ts": {
+    "mtime": 1778926060.974281,
+    "ast_hash": "673c51ac4b1a241371b8e1f749d48db7",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\engine\\test\\ranking.spec.ts": {
+    "mtime": 1778883956.0219345,
+    "ast_hash": "2fcacc4a4a997fc63e1279ac2d5c26d4",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\engine\\test\\scoring.spec.ts": {
+    "mtime": 1779462068.2335184,
+    "ast_hash": "14f9d0908c45e8eac766d830b0f3e1ea",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\.mcp.json": {
+    "mtime": 1779304743.3008497,
+    "ast_hash": "cd78a4643d46c7c3f7d052e4ebfed603",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\.prettierrc.json": {
+    "mtime": 1778883581.9829152,
+    "ast_hash": "12917ce35c0562e10b86b67d7f946cd0",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\package.json": {
+    "mtime": 1778884158.3022034,
+    "ast_hash": "1dc2473eef95bd652f2b2616bb74e30d",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\tsconfig.base.json": {
+    "mtime": 1778883575.3719604,
+    "ast_hash": "1bba767367dd1a1c5bb219f7d9ddfa02",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\.claude\\launch.json": {
+    "mtime": 1779020967.8273547,
+    "ast_hash": "8fc556b00e99141eec18de2de6d5de94",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\.claude\\settings.json": {
+    "mtime": 1779811658.7380054,
+    "ast_hash": "5d6ecd96cf065b16e8bb9fbf5d7d8f0d",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\.claude\\settings.local.json": {
+    "mtime": 1779115131.6003547,
+    "ast_hash": "0b0a23bd107da67c7b2baa0d3904e9d9",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\package.json": {
+    "mtime": 1779082131.0572853,
+    "ast_hash": "e3a66e9cd0f945b4beb6e95f99656cfc",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\postcss.config.js": {
+    "mtime": 1778884736.0120955,
+    "ast_hash": "ef3ba2a81ba19f8ea5ddf625521e96f0",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\tailwind.config.js": {
+    "mtime": 1779046103.636355,
+    "ast_hash": "ba2ccb5b4a7b94f8dddd3413be321b14",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\tsconfig.json": {
+    "mtime": 1778884718.7595181,
+    "ast_hash": "436fdd98ad3f5e248525f6776bd4102d",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\vite.config.ts": {
+    "mtime": 1778884728.571035,
+    "ast_hash": "5b0f33b8635f4a260d0ad8dbc447d65e",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\public\\sw.js": {
+    "mtime": 1779443409.8585854,
+    "ast_hash": "ac43ce439bb3b70d953535dfc4500e7c",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\main.tsx": {
+    "mtime": 1779082317.0834157,
+    "ast_hash": "5cf670a25ef5f375ac05f1e1043f3576",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\vite-env.d.ts": {
+    "mtime": 1778884962.125584,
+    "ast_hash": "9ee3fccb5ee98f334d5289d2bf9d11bb",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\components\\BiddingPanel.tsx": {
+    "mtime": 1779076898.7267783,
+    "ast_hash": "2e28e6e361fdbb8415d080dfce22a180",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\components\\Card.tsx": {
+    "mtime": 1778923885.1366854,
+    "ast_hash": "6c6d12715744901bedb81f4d1916b9ba",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\components\\ErrorScreen.tsx": {
+    "mtime": 1779043324.3530116,
+    "ast_hash": "aabab83d7d39e5a53c95aab8687a2e31",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\components\\JoinForm.tsx": {
+    "mtime": 1779043313.8168936,
+    "ast_hash": "85a89f9febd60812e2d555bf6fcfd4b6",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\components\\LanguageToggle.tsx": {
+    "mtime": 1778921652.5593054,
+    "ast_hash": "04b999feb389fa2e0f2c2436546a98d5",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\components\\Lobby.tsx": {
+    "mtime": 1779529731.8164895,
+    "ast_hash": "ec1eed1ee18042c124059a097539b79a",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\components\\Ornaments.tsx": {
+    "mtime": 1778921088.9487941,
+    "ast_hash": "3e335cf3cd29c01deee917aad4479009",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\components\\PublicNav.tsx": {
+    "mtime": 1779442385.5091362,
+    "ast_hash": "063ce8868c8aee47430f0cf3b43c833b",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\components\\Reactions.tsx": {
+    "mtime": 1779019716.1862311,
+    "ast_hash": "9b00dd53ffa8b09005a37e11b988aefd",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\components\\Table.tsx": {
+    "mtime": 1779442340.0978074,
+    "ast_hash": "ba8ae664eb2f3d4bff930378ba04454d",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\components\\VictoryOverlay.tsx": {
+    "mtime": 1779376793.0707202,
+    "ast_hash": "fc11d4f04c1d3c082d42c3f6cf53a558",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\i18n\\bg.ts": {
+    "mtime": 1779529800.71285,
+    "ast_hash": "28621535215838589205ee87fac28304",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\i18n\\en.ts": {
+    "mtime": 1779529833.7880263,
+    "ast_hash": "2eb632a044280eb6fb95d90ab2fc00b0",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\i18n\\index.ts": {
+    "mtime": 1778921644.2773323,
+    "ast_hash": "6fdd4ac726a308ad7a3acac121beaa4b",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\lib\\api.ts": {
+    "mtime": 1779394086.079883,
+    "ast_hash": "2398d736e5aea9c762a164bc0cdbecfe",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\lib\\auth.ts": {
+    "mtime": 1779082194.4747858,
+    "ast_hash": "606cfd3c7826ff46ff06c16790541fba",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\lib\\bracket.test.mjs": {
+    "mtime": 1779190418.8819392,
+    "ast_hash": "300c5911159898b85c9c3faee919614f",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\lib\\bracket.ts": {
+    "mtime": 1779133529.618298,
+    "ast_hash": "8111b4fd6afe771baf3b99bdc0fd7135",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\lib\\identity.ts": {
+    "mtime": 1778887382.073484,
+    "ast_hash": "4f97f1ff8074ef16f63eeea665be4dcf",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\lib\\notify.ts": {
+    "mtime": 1779394068.3452477,
+    "ast_hash": "28e39b90e96b3f0c5efb006cbe1590ad",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\lib\\sortHand.ts": {
+    "mtime": 1778957535.2106912,
+    "ast_hash": "ed90830821746ac41909715ede3b5848",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\lib\\stats.ts": {
+    "mtime": 1779118329.9078004,
+    "ast_hash": "b3142187b54059f799ffdb223ab7333f",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\lib\\supabase.ts": {
+    "mtime": 1779082185.3671966,
+    "ast_hash": "638d150228957cb345c54393cf3d5203",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\lib\\tournaments.ts": {
+    "mtime": 1779376854.733946,
+    "ast_hash": "6f9329a237ff670b2847d5bff633e7fe",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\routes\\AuthPages.tsx": {
+    "mtime": 1779116453.1759467,
+    "ast_hash": "19a4f4888ba65c60b92580a870c3a002",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\routes\\ComingSoon.tsx": {
+    "mtime": 1779046290.7583494,
+    "ast_hash": "a3d373ef32385142b1baf93cb37ef8d7",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\routes\\Landing.tsx": {
+    "mtime": 1779046530.9709227,
+    "ast_hash": "54fc0b912eb022c4e9aeaa4f40769383",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\routes\\Leaderboard.tsx": {
+    "mtime": 1779118390.964993,
+    "ast_hash": "c86749996ed0af81206c373a7897c483",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\routes\\Premium.tsx": {
+    "mtime": 1779046331.8259723,
+    "ast_hash": "8114a1885500175947c04e053ca40c5d",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\routes\\Profile.tsx": {
+    "mtime": 1779118450.9645586,
+    "ast_hash": "79f9b0a6f9fc90f6ba658a6f1c7ff5bb",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\routes\\RoomRoute.tsx": {
+    "mtime": 1779527737.682933,
+    "ast_hash": "3cfe214e783e60b1263d0cedb9bae0f0",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\routes\\Rules.tsx": {
+    "mtime": 1779118149.686717,
+    "ast_hash": "aadcb6bc82a7b0a368eafa0d84ce5d2d",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\routes\\Settings.tsx": {
+    "mtime": 1779394143.1700494,
+    "ast_hash": "e84478966052c69e3932b4558506422c",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\routes\\Tablo.tsx": {
+    "mtime": 1779529630.2612321,
+    "ast_hash": "ffe9a1347ade6910fe9e75f97fa80729",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\routes\\TournamentDetail.tsx": {
+    "mtime": 1779376845.6825607,
+    "ast_hash": "9aebd053ce36bb47ff14ed9bca3f8ea1",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\routes\\Tournaments.tsx": {
+    "mtime": 1779133710.9100943,
+    "ast_hash": "754fce0aeaaafc8d31c0274ed4afcd31",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\src\\store\\game.ts": {
+    "mtime": 1779529503.0736732,
+    "ast_hash": "e7b495a8736cc10619329da2abcbe387",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\server\\mm-smoke.test.mjs": {
+    "mtime": 1779190461.28692,
+    "ast_hash": "fc70ae00f6eaf24f65f0acf98b9377b4",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\server\\package.json": {
+    "mtime": 1779132742.6654935,
+    "ast_hash": "45b8d88b7378c8342d507384dfdf07ff",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\server\\tsconfig.json": {
+    "mtime": 1778884627.5134141,
+    "ast_hash": "bbe8a9c5518439eff1adb885e56a8091",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\server\\tsup.config.ts": {
+    "mtime": 1778885027.4194613,
+    "ast_hash": "1639bd7d406fe614e21a6000d10a0c40",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\server\\src\\index.ts": {
+    "mtime": 1779529345.008449,
+    "ast_hash": "0c3bb9a0721c060b47279cce42ef07fc",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\server\\src\\room.ts": {
+    "mtime": 1779529134.5090528,
+    "ast_hash": "b9183a4d2d1607e0271882f5004c2e15",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\server\\src\\supabase.ts": {
+    "mtime": 1779449138.5956748,
+    "ast_hash": "9d12a9a5b605118d166a8af4f4ea157b",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\shared\\package.json": {
+    "mtime": 1778883588.1038942,
+    "ast_hash": "aa59173aa80c7102748286654a384873",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\shared\\tsconfig.json": {
+    "mtime": 1778883639.8927245,
+    "ast_hash": "c191c7afab376b7e2a4467fe35f3a2c4",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\shared\\src\\index.ts": {
+    "mtime": 1778883649.3345442,
+    "ast_hash": "d2a15895379ef5c13a2a642d2c78aac5",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\shared\\src\\types.ts": {
+    "mtime": 1778960551.4401855,
+    "ast_hash": "a03cc64cf1fdb130023f2418996a08f9",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\supabase\\.temp\\linked-project.json": {
+    "mtime": 1779303687.0944114,
+    "ast_hash": "a7c75832010a6a4732a740bec5d5d36e",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\supabase\\migrations\\20260518_init_auth_and_match_history.sql": {
+    "mtime": 1779082123.301218,
+    "ast_hash": "2da237f8fe5febacee6fdbc1866fc545",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\supabase\\migrations\\20260518_phase_c_matches_select_policy.sql": {
+    "mtime": 1779118599.4021065,
+    "ast_hash": "2d79d83e4930e7c8df68abec7152930b",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\supabase\\migrations\\20260518_phase_d_tournaments.sql": {
+    "mtime": 1779133899.7879097,
+    "ast_hash": "fd78fe49457fa1143e1232851023ab9b",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\supabase\\migrations\\20260519_matches_insert_policy.sql": {
+    "mtime": 1779190196.5502467,
+    "ast_hash": "fdb5aca9fb1b7b8aac9c67fb08013280",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\supabase\\migrations\\20260519_role_grants_fixup.sql": {
+    "mtime": 1779190863.6832268,
+    "ast_hash": "6010dec7917485ff1ad50934ffb4860d",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\supabase\\migrations\\20260520190218_create_test_table.sql": {
+    "mtime": 1779303876.9987662,
+    "ast_hash": "98fb59f14dc624a2f5c300b8d0d849b9",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\supabase\\migrations\\20260521_security_hardening.sql": {
+    "mtime": 1779376482.6251945,
+    "ast_hash": "652485957464d7bb9eb7da132c1e0b11",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\supabase\\migrations\\APPLY_ALL_IN_STUDIO.sql": {
+    "mtime": 1779191066.8487816,
+    "ast_hash": "aa7efe7c6624cd84a43a77bf83201b8f",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\audit-report.md": {
+    "mtime": 1779376057.605371,
+    "ast_hash": "f0b588e4ec6c2a94d145467289456397",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\claude-code-audit-prompt.md": {
+    "mtime": 1779375383.5752807,
+    "ast_hash": "a4183f90fa5d2143cd1a91cf500dfb53",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\CLAUDE.md": {
+    "mtime": 1779811658.7370055,
+    "ast_hash": "cc7daa39161c1900e703d0cba87ab3b4",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\design-prompt-belot.md": {
+    "mtime": 1779044778.964494,
+    "ast_hash": "c71365bc58e7c167b72983646ad746ee",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\README.md": {
+    "mtime": 1778961084.0622783,
+    "ast_hash": "a3f2c816115d539ce282199ce967c985",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\render.yaml": {
+    "mtime": 1778885122.867144,
+    "ast_hash": "729416ced024a927be1d6fc15bb48f5c",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\security-performance-audit-prompt.md": {
+    "mtime": 1779119069.2762003,
+    "ast_hash": "afb4b0eb89865f28e347f06159a28bea",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\.claude\\CLAUDE.md": {
+    "mtime": 1779811658.736003,
+    "ast_hash": "817fe671013b35ae0bc9301dfe449a87",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\.claude\\skills\\graphify\\SKILL.md": {
+    "mtime": 1779811658.7340033,
+    "ast_hash": "e065bdafac4ca689ffd4e353ffd71160",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\.claude\\skills\\playwright-cli\\SKILL.md": {
+    "mtime": 1779485534.506879,
+    "ast_hash": "b5a8fa6906768a1d4d3aeb00d0c0a1f2",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\.claude\\skills\\playwright-cli\\references\\element-attributes.md": {
+    "mtime": 1779485534.4998808,
+    "ast_hash": "8b8ffc48e38a5b4a04baec18a2732cd7",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\.claude\\skills\\playwright-cli\\references\\playwright-tests.md": {
+    "mtime": 1779485534.5008793,
+    "ast_hash": "99970dceff6228941c8f994e7dd71d27",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\.claude\\skills\\playwright-cli\\references\\request-mocking.md": {
+    "mtime": 1779485534.5028813,
+    "ast_hash": "3b74af1fc908062c9c7f2cef04be6a24",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\.claude\\skills\\playwright-cli\\references\\running-code.md": {
+    "mtime": 1779485534.5038795,
+    "ast_hash": "971c216502efd1af848fe0711e2cffc7",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\.claude\\skills\\playwright-cli\\references\\session-management.md": {
+    "mtime": 1779485534.5048792,
+    "ast_hash": "82975a2a618d15314a5c4397b6245a7c",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\.claude\\skills\\playwright-cli\\references\\spec-driven-testing.md": {
+    "mtime": 1779485534.5118823,
+    "ast_hash": "30aa0cce7077d985e0159254c7034ea4",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\.claude\\skills\\playwright-cli\\references\\storage-state.md": {
+    "mtime": 1779485534.5128846,
+    "ast_hash": "074c38cbac4b12b82e97241ac549b449",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\.claude\\skills\\playwright-cli\\references\\test-generation.md": {
+    "mtime": 1779485534.5138843,
+    "ast_hash": "9c57c3164e307594ae3649455b950b5c",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\.claude\\skills\\playwright-cli\\references\\tracing.md": {
+    "mtime": 1779485534.514884,
+    "ast_hash": "2ecb8b98a4fa4e2d481e3de623072559",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\.claude\\skills\\playwright-cli\\references\\video-recording.md": {
+    "mtime": 1779485534.5158832,
+    "ast_hash": "ddd269974535b4bd6c5d4b5d75b4849e",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\index.html": {
+    "mtime": 1778961936.4747603,
+    "ast_hash": "0c4e09e77017a73dac0152afb61af974",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\supabase\\email-templates\\confirm-signup.html": {
+    "mtime": 1779117281.783847,
+    "ast_hash": "304e8ca068ffbac7a256154381e48077",
+    "semantic_hash": ""
+  },
+  "C:\\Users\\atana\\Music\\belot\\packages\\client\\public\\icon.svg": {
+    "mtime": 1778961893.8451247,
+    "ast_hash": "64b573f5f8b958627c9acf280db588d0",
+    "semantic_hash": ""
+  }
+}

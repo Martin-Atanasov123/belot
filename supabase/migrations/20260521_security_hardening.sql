@@ -17,6 +17,7 @@ drop table if exists public.test_demo cascade;
 -- Remove the permissive client insert policy and the table-level grant so the
 -- browser can no longer fabricate match rows. SELECT stays open (leaderboard).
 drop policy if exists matches_insert_self on public.matches;
+drop policy if exists matches_insert_auth on public.matches;
 revoke insert on public.matches from authenticated;
 
 -- match_events: same treatment (server-only writes going forward).

@@ -1,11 +1,29 @@
+# Dependencies
 node_modules/
+
+# Build output
 dist/
-coverage/
-.env
-.env.local
-*.log
-.DS_Store
 .turbo/
 .vite/
+*.tsbuildinfo
+
+# Tests / coverage
+coverage/
 playwright-report/
 test-results/
+
+# Local env (never commit secrets) — covers .env, .env.local, .env.development.local, etc.
+.env
+.env.*
+!.env.example
+!.env*.example
+
+# Logs / OS junk
+*.log
+.DS_Store
+Thumbs.db
+
+# graphify — generated knowledge graph (regenerable via `python -m graphify update .`)
+# The skill config in .claude/ stays versioned; only the output is ignored.
+graphify-out/
+**/graphify-out/

@@ -123,6 +123,12 @@ export const useGame = create<State>((set, get) => ({
               set({
                 mySeat: resp.seat ?? null,
                 room: roomState,
+                // Reset stale view + reactions from any previous room. Without
+                // this, navigating from a finished game into a fresh lobby
+                // would render <Table/> instead of <Lobby/> because the store
+                // still holds the previous room's snapshot.
+                view: null,
+                reactions: [],
                 amHost: roomState ? roomState.hostId === playerId : isHost,
                 amSpectator: false,
                 hostId: playerId,
@@ -153,6 +159,11 @@ export const useGame = create<State>((set, get) => ({
               set({
                 mySeat: null,
                 room: roomState,
+                // Reset stale view + reactions from any previous room (same
+                // reasoning as join — would otherwise render the previous
+                // game's table instead of the new room's lobby).
+                view: null,
+                reactions: [],
                 amHost: false,
                 amSpectator: true,
                 hostId: playerId,

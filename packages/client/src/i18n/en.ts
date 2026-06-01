@@ -17,6 +17,8 @@ export const en: Record<MessageKey, string> = {
   'error.tryAgain':      'Try again',
   'error.goHome':        'Back to the salon',
   'error.code':          'Code',
+  'conn.connecting':     'CONNECTING TO SERVER…',
+  'conn.wakingUp':       'SERVER IS WAKING UP (~30 SEC)…',
   'common.online':       'ONLINE',
   'common.offline':      'OFFLINE',
 

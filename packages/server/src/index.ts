@@ -503,11 +503,11 @@ function afterTransition(room: Room) {
 
 // ── Quick match (public lobby rooms) ─────────────────────────────────────────
 // "Quick match" finds an open public room (or makes one) and drops the player
-// into its LOBBY. They see who else arrives, can vote to add bots (majority of
-// seated humans), and a fallback timer fills bots + starts after a wait so it
-// never stalls. Four humans → the game auto-starts (autoStartOnFill).
-
-const QUICK_FILL_AFTER_MS = 30_000 // fallback: auto-fill bots + start after this
+// into its LOBBY. They see who else arrives. The game starts only via:
+//   1) 4 humans gather → autoStartOnFill in room:join, OR
+//   2) Majority of seated humans vote "Add bots" → fillBotsAndStart.
+// There's deliberately no auto-bot timer: players wait in the lobby until one
+// of those triggers fires. An abandoned lobby is reaped by the empty-room timer.
 
 function findOrCreateQuickRoom(hostId: string): Room | null {
   // Reuse an open public room so simultaneous searchers share one lobby.
@@ -521,12 +521,11 @@ function findOrCreateQuickRoom(hostId: string): Room | null {
   room.autoStartOnFill = true // 4 humans → start without needing a vote
   rooms.set(code, room)
   scheduleEmptyTimer(room)
-  armQuickFillTimer(room)
   app.log.info({ code }, 'quick-match room created')
   return room
 }
 
-// Fill the empty seats with bots and start (quick-match vote passed or timer fired).
+// Fill the empty seats with bots and start the game (quick-match vote passed).
 function fillBotsAndStart(room: Room): void {
   if (room.snapshot) return
   let botNum = ([0, 1, 2, 3] as Seat[]).filter((s) => room.seats[s]?.isBot).length
@@ -535,21 +534,8 @@ function fillBotsAndStart(room: Room): void {
   }
   if (!allSeatsFilled(room)) return
   room.autoStartOnFill = false
-  if (room.quickFillTimer) {
-    clearTimeout(room.quickFillTimer)
-    room.quickFillTimer = null
-  }
   const r = startGame(room)
   if (r.ok) afterTransition(room)
-}
-
-function armQuickFillTimer(room: Room): void {
-  if (room.quickFillTimer) return
-  room.quickFillTimer = setTimeout(() => {
-    room.quickFillTimer = null
-    if (room.snapshot || !anyHumanConnected(room)) return // started, or abandoned
-    fillBotsAndStart(room)
-  }, QUICK_FILL_AFTER_MS)
 }
 
 io.on('connection', (socket) => {

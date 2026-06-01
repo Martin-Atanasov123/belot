@@ -15,6 +15,7 @@ import { Tournaments } from './routes/Tournaments.js'
 import { TournamentDetail } from './routes/TournamentDetail.js'
 import { ComingSoon } from './routes/ComingSoon.js'
 import { ErrorScreen, NotFoundScreen } from './components/ErrorScreen.js'
+import { ConnectionBanner } from './components/ConnectionBanner.js'
 import { useI18n } from './i18n/index.js'
 import './index.css'
 
@@ -59,6 +60,7 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <AppErrorBoundary>
+      <ConnectionBanner />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Landing />} />

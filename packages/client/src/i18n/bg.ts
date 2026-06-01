@@ -16,6 +16,8 @@ export const bg = {
   'error.tryAgain':      'Опитай отново',
   'error.goHome':        'Обратно в салона',
   'error.code':          'Код',
+  'conn.connecting':     'СВЪРЗВАНЕ СЪС СЪРВЪРА…',
+  'conn.wakingUp':       'СЪРВЪРЪТ СЕ СЪБУЖДА (~30 СЕК)…',
   'common.online':       'ОНЛАЙН',
   'common.offline':      'ОФЛАЙН',
 

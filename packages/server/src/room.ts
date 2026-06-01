@@ -488,9 +488,14 @@ export function botAction(room: Room): { seat: Seat; action: Action } | null {
   }
   if (room.snapshot.phase === 'PLAYING') {
     // Difficulty-tuned card picker (engine helper). Falls back to the lowest
-    // legal card if for any reason the heuristic returns nothing.
-    const card =
-      pickBotCard(room.snapshot, room.settings.botDifficulty) ?? autoPickOnTimeout(room.snapshot)
+    // legal card if for any reason the heuristic returns nothing or throws.
+    let card: import('@belot/shared').Card | null = null
+    try {
+      card = pickBotCard(room.snapshot, room.settings.botDifficulty)
+    } catch {
+      // Heuristic failed — fall through to the safe fallback below.
+    }
+    card = card ?? autoPickOnTimeout(room.snapshot)
     if (!card) return null
     return { seat: room.snapshot.turn, action: { type: 'PLAY', seat: room.snapshot.turn, card } }
   }

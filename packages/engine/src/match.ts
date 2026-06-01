@@ -649,10 +649,11 @@ export function pickBotCard(
   }
 
   // Mid-trick: figure out which team is winning right now.
-  const winnerIdx = trickWinner(trick, contract, trump)
-  const winningCard = trick.cards[winnerIdx]!.card
-  const winnerSeat = trick.cards[winnerIdx]!.seat
-  const partnerWinning = teamOf(winnerSeat) === teamOf(seat)
+  // trickWinner() returns the winning SEAT (0-3), not an array index.
+  const winnerSeat = trickWinner(trick, contract, trump)
+  const winningEntry = trick.cards.find((p) => p.seat === winnerSeat)!
+  const winningCard = winningEntry.card
+  const partnerWinning = teamOf(winnerSeat as Seat) === teamOf(seat)
 
   if (partnerWinning) {
     // Dump highest-value legal — feed the partner's win.

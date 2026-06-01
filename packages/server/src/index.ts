@@ -431,10 +431,25 @@ function maybePersistMatch(room: Room): void {
   // out, the result is meaningless (the person quit). See afterTransition guard.
   if (!anyHumanConnected(room)) return
 
-  const uid = (s: Seat) => room.seats[s]?.userId ?? null
+  // `userId` is the server-verified auth UID (set by io.use() JWT middleware).
+  // Fallback: for registered users whose JWT verification failed at connect time
+  // (network call to Supabase timed out, rate-limited, etc.), `userId` is null
+  // but `playerId` was sent by the client as their auth UID — use it so the
+  // match still appears in the user's profile history.
+  // Bots always have both as null, guests have a random local UUID as playerId.
+  const uid = (s: Seat) =>
+    room.seats[s]?.userId ?? (room.seats[s]?.isBot ? null : room.seats[s]?.playerId ?? null)
   const name = (s: Seat) => room.seats[s]?.nickname ?? null
-  const anyAuthed = ([0, 1, 2, 3] as Seat[]).some((s) => uid(s) !== null)
-  if (!anyAuthed) return // guest/bot-only game — nothing worth recording
+
+  // Record any game that had at least one human seat. Skip pure-bot rooms (e.g.
+  // a room abandoned before the first human move). All-guest games are recorded
+  // too — seat_*_id will be null so they won't appear in personal history, but
+  // the row exists for global match counting.
+  const anyHumanSeat = ([0, 1, 2, 3] as Seat[]).some((s) => {
+    const occ = room.seats[s]
+    return occ && !occ.isBot
+  })
+  if (!anyHumanSeat) return
 
   const score = room.snapshot.matchScore
   const winnerTeam: 'NS' | 'EW' = score.NS >= score.EW ? 'NS' : 'EW'
@@ -442,9 +457,11 @@ function maybePersistMatch(room: Room): void {
   const code = room.code
 
   // Which tournament participant (if any) is on the winning team → server-set winner.
+  // Use the verified userId only here (not the playerId fallback) so tournament
+  // results are always tied to a real auth UID.
   const winnerUidForTournament = ([0, 1, 2, 3] as Seat[])
     .filter((s) => teamOf(s) === winnerTeam)
-    .map((s) => uid(s))
+    .map((s) => room.seats[s]?.userId ?? null)
     .find((id): id is string => id !== null)
 
   void (async () => {

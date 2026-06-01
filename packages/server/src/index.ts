@@ -216,6 +216,20 @@ app.get('/health', async () => ({ ok: true }))
 
 // Diagnostic: is match persistence actually working? Reports whether the
 // service-role client is configured and can write. No secrets exposed.
+// In-memory record of the last room code that was successfully persisted.
+// Only populated in non-production mode; used by the integration test to
+// verify that maybePersistMatch actually wrote the row.
+let lastPersistedCode: string | null = null
+export function setLastPersistedCode(code: string) {
+  if (process.env.NODE_ENV !== 'production') lastPersistedCode = code
+}
+
+app.get('/debug/last-match', (req, reply) => {
+  if (process.env.NODE_ENV === 'production') return reply.code(404).send({ error: 'not found' })
+  if (!allowRoomLookup(req.ip)) return reply.code(429).send({ error: 'too many requests' })
+  return { code: lastPersistedCode }
+})
+
 app.get('/debug/persist', async (req, reply) => {
   if (!allowRoomLookup(req.ip)) return reply.code(429).send({ error: 'too many requests' })
   if (!isSupabaseConfigured) {
@@ -460,6 +474,7 @@ function maybePersistMatch(room: Room): void {
       summary: { handHistory: room.snapshot!.handHistory },
       startedAt,
     })
+    if (matchId) setLastPersistedCode(code)
     if (winnerUidForTournament) {
       await reportTournamentWinner(code, matchId, winnerUidForTournament)
     }

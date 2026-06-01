@@ -30,6 +30,7 @@ type State = {
   amSpectator: boolean
   hostId: string | null
   reactions: ReactionEvent[] // queue; entries auto-dropped after ~2s by the UI
+  onlineCount: number // sockets currently connected to the server (periodic broadcast)
   connect: () => Socket
   clearJoinError: () => void
   join: (args: { code: string; playerId: string; nickname: string; isHost: boolean }) => Promise<{ ok: boolean; error?: string }>
@@ -56,6 +57,7 @@ export const useGame = create<State>((set, get) => ({
   amSpectator: false,
   hostId: null,
   reactions: [],
+  onlineCount: 0,
 
   connect: () => {
     const existing = get().socket
@@ -78,6 +80,7 @@ export const useGame = create<State>((set, get) => ({
       set({ room: state, amHost: !!myId && state.hostId === myId })
     })
     sock.on('game:view', (view: PlayerView) => set({ view }))
+    sock.on('online:count', (p: { count: number }) => set({ onlineCount: p.count }))
     sock.on('room:reaction', (r: { seat: Seat; emote: string; ts: number }) => {
       const id = Date.now() + Math.random()
       set((s) => ({ reactions: [...s.reactions, { ...r, id }] }))

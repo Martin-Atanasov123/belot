@@ -260,6 +260,8 @@ export const bg = {
 
   // Tablo / lobby hub (spec §8)
   'tablo.greeting':      'Добре дошъл',
+  'tablo.online':        'играчи онлайн',
+  'tablo.onlineHint':    'Свързани играчи в момента',
   'tablo.newRoom':       'Частна стая',
   'tablo.joinRoom':      'Присъедини се',
   'tablo.quickPlay':     'Бързо намиране',

@@ -540,7 +540,16 @@ function fillBotsAndStart(room: Room): void {
   if (r.ok) afterTransition(room)
 }
 
+// Periodic "players online" broadcast — drives the small chip on the Tablo so
+// the hub never feels dead. Cheap: just emits a single integer to everyone.
+setInterval(() => {
+  io.emit('online:count', { count: io.engine.clientsCount })
+}, 10_000).unref()
+
 io.on('connection', (socket) => {
+  // Greet the new socket with the current count so the UI updates instantly.
+  socket.emit('online:count', { count: io.engine.clientsCount })
+
   let joinedRoom: string | null = null
   let playerId: string | null = null
 

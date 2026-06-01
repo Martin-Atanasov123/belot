@@ -35,6 +35,15 @@ export function Tablo() {
   const [stats, setStats] = useState<ProfileStats | null>(null)
   const [recent, setRecent] = useState<MatchRow[]>([])
   const findMatch = useGame((s) => s.findMatch)
+  const connect = useGame((s) => s.connect)
+  const onlineCount = useGame((s) => s.onlineCount)
+
+  // Wake the socket on Tablo mount so the "X играчи онлайн" chip is live and
+  // quick-match doesn't pay an additional handshake. The store keeps a single
+  // shared socket, so this is idempotent across navigations.
+  useEffect(() => {
+    connect()
+  }, [connect])
 
   // Pull the signed-in user's recent matches + aggregate stats for the sidebar.
   useEffect(() => {
@@ -105,10 +114,21 @@ export function Tablo() {
           className="flex items-center gap-3 mb-6 sm:mb-8"
         >
           <Monogram size={38} />
-          <div>
+          <div className="flex-1">
             <div className="eyebrow">{t('tablo.greeting')}</div>
             <div className="font-display italic text-cream text-2xl sm:text-3xl">{nick}</div>
           </div>
+          {onlineCount > 0 && (
+            <div
+              className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border border-brass/25 bg-felt/40"
+              title={t('tablo.onlineHint')}
+            >
+              <span className="w-2 h-2 rounded-full bg-brass-hi" />
+              <span className="font-mono text-[11px] tracking-[0.22em] uppercase text-cream/85">
+                {onlineCount} {t('tablo.online')}
+              </span>
+            </div>
+          )}
         </motion.div>
 
         {/* Two ways to play, kept in separate labelled cards so the "with

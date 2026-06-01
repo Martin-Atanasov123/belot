@@ -261,6 +261,8 @@ export const en: Record<MessageKey, string> = {
 
   // Tablo / lobby hub
   'tablo.greeting':      'Welcome',
+  'tablo.online':        'players online',
+  'tablo.onlineHint':    'Players currently connected',
   'tablo.newRoom':       'Private room',
   'tablo.joinRoom':      'Join room',
   'tablo.quickPlay':     'Quick match',

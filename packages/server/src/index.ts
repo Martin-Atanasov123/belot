@@ -811,6 +811,7 @@ io.on('connection', (socket) => {
         turnTimerSec: z.number().int().min(10).max(120).optional(),
         // Match length in tens — 151 standard, 101 for shorter games.
         gameTo: z.union([z.literal(101), z.literal(151)]).optional(),
+        botDifficulty: z.enum(['easy', 'medium', 'hard']).optional(),
       })
       .safeParse(raw ?? {})
     if (!parsed.success) return cb({ ok: false, error: 'invalid payload' })
@@ -820,6 +821,7 @@ io.on('connection', (socket) => {
     if (parsed.data.enableAT !== undefined) next.enableAT = parsed.data.enableAT
     if (parsed.data.turnTimerSec !== undefined) next.turnTimerSec = parsed.data.turnTimerSec
     if (parsed.data.gameTo !== undefined) next.gameTo = parsed.data.gameTo
+    if (parsed.data.botDifficulty !== undefined) next.botDifficulty = parsed.data.botDifficulty
     room.settings = next
     cb({ ok: true })
     broadcastRoomState(room)

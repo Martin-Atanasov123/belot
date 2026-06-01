@@ -98,7 +98,12 @@ export type RoomSettings = {
   // +90 capot bonus. Some tournament variants treat the capot as exempt; set
   // this false to keep the +90 fixed regardless of contra/re-contra.
   capotDoubledByContra: boolean
+  // Bot difficulty: tunes bid threshold + play heuristic for any seats filled
+  // by bots in this room. 'medium' = the historical behaviour.
+  botDifficulty: BotDifficulty
 }
+
+export type BotDifficulty = 'easy' | 'medium' | 'hard'
 
 export const DEFAULT_SETTINGS: RoomSettings = {
   gameTo: 151,
@@ -108,6 +113,7 @@ export const DEFAULT_SETTINGS: RoomSettings = {
   allowSpectators: true,
   botsFillEmpty: true,
   capotDoubledByContra: true,
+  botDifficulty: 'medium',
 }
 
 export type Score = { NS: number; EW: number }

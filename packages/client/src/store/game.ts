@@ -10,7 +10,7 @@ export type PublicRoomState = {
   hostId: string
   seats: PublicSeat[]
   inGame: boolean
-  settings: { gameTo: number; enableNT: boolean; enableAT: boolean; turnTimerSec: number; allowSpectators: boolean; botsFillEmpty: boolean; capotDoubledByContra: boolean }
+  settings: { gameTo: number; enableNT: boolean; enableAT: boolean; turnTimerSec: number; allowSpectators: boolean; botsFillEmpty: boolean; capotDoubledByContra: boolean; botDifficulty: 'easy' | 'medium' | 'hard' }
   spectatorCount: number
   isQuickMatch: boolean
   botVotes: number
@@ -38,7 +38,7 @@ type State = {
   start: () => Promise<{ ok: boolean; error?: string }>
   addBot: (seat?: Seat) => Promise<{ ok: boolean; error?: string }>
   voteBots: () => Promise<{ ok: boolean; error?: string }>
-  setSettings: (patch: { capotDoubledByContra?: boolean; enableNT?: boolean; enableAT?: boolean; turnTimerSec?: number; gameTo?: 101 | 151 }) => Promise<{ ok: boolean; error?: string }>
+  setSettings: (patch: { capotDoubledByContra?: boolean; enableNT?: boolean; enableAT?: boolean; turnTimerSec?: number; gameTo?: 101 | 151; botDifficulty?: 'easy' | 'medium' | 'hard' }) => Promise<{ ok: boolean; error?: string }>
   react: (emote: string) => Promise<{ ok: boolean; error?: string }>
   dismissReaction: (id: number) => void
   send: (action: Action) => Promise<{ ok: boolean; error?: string }>

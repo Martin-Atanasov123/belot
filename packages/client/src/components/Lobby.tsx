@@ -22,7 +22,7 @@ function RulesPanel() {
   const t = useT()
   const room = useGame((s) => s.room)!
   const setSettings = useGame((s) => s.setSettings)
-  const { capotDoubledByContra: capot, enableNT, enableAT, turnTimerSec, gameTo } = room.settings
+  const { capotDoubledByContra: capot, enableNT, enableAT, turnTimerSec, gameTo, botDifficulty } = room.settings
 
   return (
     <div className="plate p-3 sm:p-4 border border-brass/25 flex flex-col gap-3">
@@ -57,6 +57,19 @@ function RulesPanel() {
           </ToggleChip>
         </div>
       </div>
+
+      {/* Bot difficulty — tunes bidding + play heuristic for bot seats */}
+      <SegmentedRow
+        label={t('lobby.botDifficulty')}
+        value={botDifficulty}
+        onChange={(v) => void setSettings({ botDifficulty: v as 'easy' | 'medium' | 'hard' })}
+        options={[
+          { v: 'easy', label: t('lobby.botEasy') },
+          { v: 'medium', label: t('lobby.botMedium') },
+          { v: 'hard', label: t('lobby.botHard') },
+        ]}
+        hint={t('lobby.botDifficultyHint')}
+      />
 
       {/* Capot doubled by contra — the existing rule */}
       <label className="flex items-start gap-3 cursor-pointer">

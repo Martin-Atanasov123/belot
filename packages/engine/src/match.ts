@@ -18,7 +18,7 @@ import { applyBid, bidLegal, startBidding, type BiddingState } from './bidding.j
 import { dealFirstFive, dealLastThree, shuffledDeck } from './deck.js'
 import { isLegalPlay, trickWinner } from './legalMoves.js'
 import { mulberry32 } from './rng.js'
-import { cardPoints } from './ranking.js'
+import { cardPoints, cardStrength } from './ranking.js'
 import { holdsBelotPair, resolveAnnouncements, scanHand } from './announcements.js'
 import { scoreHand, toTens } from './scoring.js'
 
@@ -593,6 +593,82 @@ export function autoPickOnTimeout(snap: GameSnapshot): Card | null {
   if (legal.length === 0) return null
   legal.sort((a, b) => cardPoints(a, snap.contract!, snap.trump) - cardPoints(b, snap.contract!, snap.trump))
   return legal[0]!
+}
+
+// ─── Bot card picker ─────────────────────────────────────────────────────────
+// Picks a card to play during the PLAY phase, tuned by difficulty.
+//
+//   easy   — lowest-value legal card (the historical autoPickOnTimeout policy).
+//   medium — if our partner is currently winning the trick, dump our highest
+//            legal card (let the trick pile go fat for our team). Otherwise
+//            try to win the trick with the cheapest winning legal card; if no
+//            legal card beats the current best, play the lowest-value legal.
+//   hard   — medium, plus: when leading a trick (no cards yet on the table),
+//            prefer leading a non-trump Ace if held; never lead a J or 9 of
+//            trump if we can avoid it (save the big trumps for later).
+//
+// Returns null only if there's nothing to do (no trick in progress, or no
+// legal cards) — caller falls through to autoPickOnTimeout/no-op as today.
+export function pickBotCard(
+  snap: GameSnapshot,
+  difficulty: 'easy' | 'medium' | 'hard' = 'medium',
+): Card | null {
+  if (snap.phase !== 'PLAYING') return null
+  if (!snap.currentTrick || snap.currentTrick.cards.length === 4) return null
+  const seat = snap.turn
+  const hand = snap.hands[seat]
+  const trick = snap.currentTrick
+  const contract = snap.contract!
+  const trump = snap.trump
+  const legal = hand.filter((c) => isLegalPlay(c, hand, trick, contract, trump))
+  if (legal.length === 0) return null
+
+  // Helper: value-sort ascending (low → high).
+  const byValueAsc = (a: Card, b: Card) =>
+    cardPoints(a, contract, trump) - cardPoints(b, contract, trump)
+
+  if (difficulty === 'easy') {
+    return [...legal].sort(byValueAsc)[0]!
+  }
+
+  // Leading a trick: hard mode prefers Ace of non-trump; avoids J/9 of trump.
+  if (trick.cards.length === 0) {
+    if (difficulty === 'hard') {
+      const aces = legal.filter((c) => c.rank === 'A' && c.suit !== trump)
+      if (aces.length > 0) return aces[0]!
+      const nonBigTrumps = legal.filter(
+        (c) => !(c.suit === trump && (c.rank === 'J' || c.rank === '9')),
+      )
+      if (nonBigTrumps.length > 0) return [...nonBigTrumps].sort(byValueAsc).pop()!
+    }
+    // Medium leading with no special preference: play highest non-trump-honour
+    // we have; if only trumps left, lowest trump.
+    const nonTrump = legal.filter((c) => c.suit !== trump)
+    if (nonTrump.length > 0) return [...nonTrump].sort(byValueAsc).pop()!
+    return [...legal].sort(byValueAsc)[0]!
+  }
+
+  // Mid-trick: figure out which team is winning right now.
+  const winnerIdx = trickWinner(trick, contract, trump)
+  const winningCard = trick.cards[winnerIdx]!.card
+  const winnerSeat = trick.cards[winnerIdx]!.seat
+  const partnerWinning = teamOf(winnerSeat) === teamOf(seat)
+
+  if (partnerWinning) {
+    // Dump highest-value legal — feed the partner's win.
+    return [...legal].sort(byValueAsc).pop()!
+  }
+
+  // Try to take the trick: legal cards that beat the current best.
+  const winningCandidates = legal.filter(
+    (c) => cardStrength(c, contract, trump) > cardStrength(winningCard, contract, trump),
+  )
+  if (winningCandidates.length > 0) {
+    // Cheapest card that still wins — don't waste big trumps if a small one wins.
+    return [...winningCandidates].sort(byValueAsc)[0]!
+  }
+  // Can't win — minimise loss with the lowest-value legal card.
+  return [...legal].sort(byValueAsc)[0]!
 }
 
 export const _suitGuard: Suit = 'C' // type usage to satisfy verbatimModuleSyntax

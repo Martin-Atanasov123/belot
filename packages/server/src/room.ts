@@ -4,6 +4,7 @@ import {
   apply,
   autoPickOnTimeout,
   hasPendingTrick,
+  pickBotCard,
   isError,
   newMatch,
   projectSpectatorView,
@@ -429,6 +430,12 @@ function decideBotBid(room: Room): Action {
   if (best.c === 'NT') threshold = 54
   if (best.c === 'AT') threshold = 58
 
+  // Difficulty shift: easy bots are timid (rarely bid); hard bots are
+  // aggressive (lower bar). Medium keeps the historical numbers.
+  const diff = room.settings.botDifficulty
+  if (diff === 'easy') threshold += 12
+  else if (diff === 'hard') threshold -= 6
+
   // Raising over an existing bid is high-risk → demand a bigger margin.
   if (last) threshold += 8
 
@@ -447,8 +454,9 @@ function decideBotBid(room: Room): Action {
   }
 
   // Contra: if opponents have bid and our defending hand is strong, threaten contra.
-  // Cheap heuristic: 2+ Jacks AND 1+ Ace, against an opponent's bid.
-  if (last && snap.multiplier === 1) {
+  // Cheap heuristic: 2+ Jacks AND 1+ Ace, against an opponent's bid. Easy bots
+  // skip contra entirely — that's a tactical move you only get from medium up.
+  if (last && snap.multiplier === 1 && diff !== 'easy') {
     let lastBidSeat: Seat | null = null
     for (let i = snap.bidHistory.length - 1; i >= 0; i--) {
       const h = snap.bidHistory[i]!
@@ -479,7 +487,10 @@ export function botAction(room: Room): { seat: Seat; action: Action } | null {
     return { seat: room.snapshot.turn, action: decideBotBid(room) }
   }
   if (room.snapshot.phase === 'PLAYING') {
-    const card = autoPickOnTimeout(room.snapshot)
+    // Difficulty-tuned card picker (engine helper). Falls back to the lowest
+    // legal card if for any reason the heuristic returns nothing.
+    const card =
+      pickBotCard(room.snapshot, room.settings.botDifficulty) ?? autoPickOnTimeout(room.snapshot)
     if (!card) return null
     return { seat: room.snapshot.turn, action: { type: 'PLAY', seat: room.snapshot.turn, card } }
   }

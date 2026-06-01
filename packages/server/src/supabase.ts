@@ -11,14 +11,21 @@ if (typeof globalThis.WebSocket === 'undefined') {
 // Server-side Supabase client. Uses the SERVICE_ROLE key so it can bypass RLS
 // when writing match history rows (the ONLY writer of public.matches and of
 // tournament_matches.winner_id — clients are read-only there). Also verifies
-// JWTs from connecting sockets (locally via JWT secret, or via getUser()).
+// JWTs from connecting sockets (locally via JWKS, or via getUser() network call).
 
 const SUPABASE_URL = process.env.SUPABASE_URL
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
-// Optional: set SUPABASE_JWT_SECRET from Project Settings → API → JWT Secret.
-// When present, tokens are verified locally (no network round-trip).
-// Fallback: network call to supabase.auth.getUser().
+// Legacy HS256 shared secret — only used as a fallback for tokens that were
+// issued before Supabase rotated to ECC P-256. New tokens are verified via JWKS.
 const JWT_SECRET = process.env.SUPABASE_JWT_SECRET
+
+// ── JWKS-based local verification (Supabase P-256 current key) ───────────────
+// jose caches the key set after the first fetch; subsequent calls are local.
+// This handles automatic key rotations — the discovery URL always serves the
+// current active key(s).
+const jwks = SUPABASE_URL
+  ? jose.createRemoteJWKSet(new URL(`${SUPABASE_URL}/auth/v1/.well-known/jwks.json`))
+  : null
 
 export const isSupabaseConfigured = Boolean(SUPABASE_URL && SERVICE_KEY)
 
@@ -44,16 +51,15 @@ export type AuthedUser = {
 // Verify a Supabase access token (JWT). Returns the user info on success,
 // null on any failure. Never throws — callers treat null as "guest".
 //
-// Fast path: if SUPABASE_JWT_SECRET is set, verify signature + expiry locally
-// (zero network latency). Slower fallback: supabase.auth.getUser() network call.
+// Verification order (fastest first):
+//   1. JWKS (P-256 ES256) — current Supabase signing key, local after 1st fetch.
+//   2. HS256 shared secret — legacy fallback for tokens issued before key rotation.
+//   3. Network getUser() — last resort when SUPABASE_URL is configured.
 export async function verifyAccessToken(token: string): Promise<AuthedUser | null> {
-  // ── Fast path: local HS256 verification ─────────────────────────────
-  if (JWT_SECRET) {
+  // ── Path 1: JWKS / P-256 local verification ──────────────────────────
+  if (jwks) {
     try {
-      const secret = new TextEncoder().encode(JWT_SECRET)
-      const { payload } = await jose.jwtVerify(token, secret, {
-        algorithms: ['HS256'],
-      })
+      const { payload } = await jose.jwtVerify(token, jwks)
       if (!payload.sub) return null
       const meta = ((payload as Record<string, unknown>).user_metadata ?? {}) as Record<string, unknown>
       return {
@@ -62,11 +68,29 @@ export async function verifyAccessToken(token: string): Promise<AuthedUser | nul
         username: (meta.username as string | undefined) ?? (meta.preferred_username as string | undefined) ?? null,
       }
     } catch {
-      return null
+      // P-256 check failed — might be a legacy HS256 token or genuinely invalid.
+      // Fall through to the next path.
     }
   }
 
-  // ── Fallback: network verification ──────────────────────────────────
+  // ── Path 2: legacy HS256 shared secret ───────────────────────────────
+  if (JWT_SECRET) {
+    try {
+      const secret = new TextEncoder().encode(JWT_SECRET)
+      const { payload } = await jose.jwtVerify(token, secret, { algorithms: ['HS256'] })
+      if (!payload.sub) return null
+      const meta = ((payload as Record<string, unknown>).user_metadata ?? {}) as Record<string, unknown>
+      return {
+        id: payload.sub,
+        email: (payload.email as string | undefined) ?? null,
+        username: (meta.username as string | undefined) ?? (meta.preferred_username as string | undefined) ?? null,
+      }
+    } catch {
+      // Also failed — fall through to network verification.
+    }
+  }
+
+  // ── Path 3: network verification ─────────────────────────────────────
   if (!supabaseAdmin) return null
   try {
     const { data, error } = await supabaseAdmin.auth.getUser(token)

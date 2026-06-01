@@ -3,16 +3,24 @@ import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { createRoom } from '../lib/api.js'
 import { getNickname, getPlayerIdFor, setNickname } from '../lib/identity.js'
+import { useAuth } from '../lib/auth.js'
 import { useT } from '../i18n/index.js'
+import { useGame } from '../store/game.js'
 import { Flourish, Monogram, CornerOrnament } from '../components/Ornaments.js'
 import { PublicNav } from '../components/PublicNav.js'
 
 export function Landing() {
   const t = useT()
   const nav = useNavigate()
+  const session = useAuth((s) => s.session)
+  const user = useAuth((s) => s.user)
+  const findMatch = useGame((s) => s.findMatch)
   const [nick, setNick] = useState(getNickname())
   const [joinCode, setJoinCode] = useState('')
-  const [busy, setBusy] = useState(false)
+  // Separate busy flags so a slow quick-match search doesn't grey out the
+  // "Private room" button (and vice-versa).
+  const [creatingPrivate, setCreatingPrivate] = useState(false)
+  const [searchingMatch, setSearchingMatch] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const persistNick = () => {
@@ -21,15 +29,35 @@ export function Landing() {
     setNickname(n)
     return true
   }
+
+  // Quick match: server finds an open public lobby or creates a new one, then
+  // we navigate to /r/<code>. This is the entry point that pools simultaneous
+  // searchers into the same room — the fix for "two players → two rooms".
+  const onQuickPlay = async () => {
+    if (!persistNick()) return
+    setSearchingMatch(true); setError(null)
+    try {
+      const playerId = user?.id ?? getPlayerIdFor(nick.trim())
+      const r = await findMatch({ playerId, nickname: nick.trim() })
+      if (r.ok && r.code) nav(`/r/${r.code}`)
+      else setError(r.error ?? 'matchmaking failed')
+    } finally { setSearchingMatch(false) }
+  }
+
+  // Private room: create a new room and land as host. Use the verified auth
+  // uid when signed in so the host identity can't be spoofed.
   const onCreate = async () => {
     if (!persistNick()) return
-    setBusy(true); setError(null)
+    setCreatingPrivate(true); setError(null)
     try {
-      const { code } = await createRoom(getPlayerIdFor(nick.trim()))
+      const playerId = user?.id ?? getPlayerIdFor(nick.trim())
+      const token = session?.access_token
+      const { code } = await createRoom(playerId, token)
       nav(`/r/${code}?host=1`)
     } catch (e) { setError((e as Error).message) }
-    finally { setBusy(false) }
+    finally { setCreatingPrivate(false) }
   }
+
   const onJoin = () => {
     if (!persistNick()) return
     const c = joinCode.trim().toUpperCase()
@@ -159,11 +187,32 @@ export function Landing() {
               />
             </label>
 
-            <button onClick={onCreate} disabled={busy} className="btn-brass w-full mb-6 text-base py-3.5">
-              {busy ? t('landing.creating') : t('landing.create')}
+            {/* Primary CTA — quick match. Pools simultaneous searchers into one
+                lobby instead of fragmenting them into separate rooms. */}
+            <button
+              onClick={onQuickPlay}
+              disabled={searchingMatch}
+              className="btn-brass w-full mb-3 text-base py-3.5"
+            >
+              {searchingMatch ? t('landing.searching') : t('landing.quickPlay')}
             </button>
+            <p className="font-display italic text-cream/55 text-[11px] text-center -mt-1 mb-5">
+              {t('landing.quickPlayHint')}
+            </p>
 
-            <div className="flex items-center gap-3 my-6">
+            {/* Secondary CTA — private room. Friends gather via the shared code. */}
+            <button
+              onClick={onCreate}
+              disabled={creatingPrivate}
+              className="btn-ghost w-full mb-2 py-3"
+            >
+              {creatingPrivate ? t('landing.creating') : t('landing.privateRoom')}
+            </button>
+            <p className="font-display italic text-cream/55 text-[11px] text-center mb-5">
+              {t('landing.privateRoomHint')}
+            </p>
+
+            <div className="flex items-center gap-3 my-5">
               <div className="flex-1 h-px bg-brass/30" />
               <span className="font-display text-brass/70 text-sm font-medium">{t('landing.orJoin')}</span>
               <div className="flex-1 h-px bg-brass/30" />
@@ -270,8 +319,12 @@ export function Landing() {
           <p className="font-display text-cream/85 text-lg sm:text-xl mt-6 max-w-2xl mx-auto leading-snug font-medium">
             {t('landing.closingBody')}
           </p>
-          <button onClick={onCreate} className="btn-brass mt-8 px-10 py-4 text-base">
-            {t('landing.create')}
+          <button
+            onClick={onQuickPlay}
+            disabled={searchingMatch}
+            className="btn-brass mt-8 px-10 py-4 text-base"
+          >
+            {searchingMatch ? t('landing.searching') : t('landing.quickPlay')}
           </button>
           <div className="mt-4">
             <Link to="/rules" className="font-display text-brass/80 hover:text-brass-hi text-sm">

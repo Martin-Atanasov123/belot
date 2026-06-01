@@ -126,6 +126,12 @@ export const bg = {
   'lobby.startingSoon':  'Масата е пълна — започваме…',
   'lobby.rulesTitle':    'Правила на масата',
   'lobby.capotDouble':   'Капото се удвоява от контра/реконтра',
+  'lobby.gameTo':        'Игра до',
+  'lobby.gameToHint':    '101 = по-кратка партия. 151 е стандарт.',
+  'lobby.turnTimer':     'Време за ход',
+  'lobby.contracts':     'Разрешени договори',
+  'suit.NT.short':       'NT',
+  'suit.AT.short':       'AT',
   'lobby.capotDoubleHint':'Изкл. = бонусът от 90 точки остава фиксиран',
 
   'table.room':          'Стая',

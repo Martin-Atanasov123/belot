@@ -22,11 +22,43 @@ function RulesPanel() {
   const t = useT()
   const room = useGame((s) => s.room)!
   const setSettings = useGame((s) => s.setSettings)
-  const capot = room.settings.capotDoubledByContra
+  const { capotDoubledByContra: capot, enableNT, enableAT, turnTimerSec, gameTo } = room.settings
 
   return (
-    <div className="plate p-3 sm:p-4 border border-brass/25">
-      <div className="eyebrow eyebrow-active mb-2">{t('lobby.rulesTitle')}</div>
+    <div className="plate p-3 sm:p-4 border border-brass/25 flex flex-col gap-3">
+      <div className="eyebrow eyebrow-active">{t('lobby.rulesTitle')}</div>
+
+      {/* Game to — match length */}
+      <SegmentedRow
+        label={t('lobby.gameTo')}
+        value={String(gameTo)}
+        onChange={(v) => void setSettings({ gameTo: Number(v) as 101 | 151 })}
+        options={[{ v: '151', label: '151' }, { v: '101', label: '101' }]}
+        hint={t('lobby.gameToHint')}
+      />
+
+      {/* Turn timer */}
+      <SegmentedRow
+        label={t('lobby.turnTimer')}
+        value={String(turnTimerSec)}
+        onChange={(v) => void setSettings({ turnTimerSec: Number(v) })}
+        options={[{ v: '15', label: '15s' }, { v: '30', label: '30s' }, { v: '60', label: '60s' }]}
+      />
+
+      {/* Allowed contracts — NT / AT toggles */}
+      <div className="flex items-center justify-between gap-3">
+        <span className="font-display text-cream text-sm">{t('lobby.contracts')}</span>
+        <div className="flex gap-1">
+          <ToggleChip on={enableNT} onClick={() => void setSettings({ enableNT: !enableNT })}>
+            {t('suit.NT.short')}
+          </ToggleChip>
+          <ToggleChip on={enableAT} onClick={() => void setSettings({ enableAT: !enableAT })}>
+            {t('suit.AT.short')}
+          </ToggleChip>
+        </div>
+      </div>
+
+      {/* Capot doubled by contra — the existing rule */}
       <label className="flex items-start gap-3 cursor-pointer">
         <input
           type="checkbox"
@@ -40,6 +72,62 @@ function RulesPanel() {
         </div>
       </label>
     </div>
+  )
+}
+
+function SegmentedRow({
+  label,
+  value,
+  onChange,
+  options,
+  hint,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  options: Array<{ v: string; label: string }>
+  hint?: string
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-3 mb-1">
+        <span className="font-display text-cream text-sm">{label}</span>
+        <div className="flex gap-1">
+          {options.map((o) => (
+            <button
+              key={o.v}
+              type="button"
+              onClick={() => onChange(o.v)}
+              className={`px-2.5 py-1 rounded font-mono text-[10px] tracking-[0.16em] uppercase border transition ${
+                value === o.v
+                  ? 'bg-brass/15 border-brass text-brass-hi'
+                  : 'border-ash/25 text-ash hover:text-cream hover:border-cream/40'
+              }`}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {hint && <div className="text-[10px] text-ash italic">{hint}</div>}
+    </div>
+  )
+}
+
+function ToggleChip({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={on}
+      className={`px-2.5 py-1 rounded font-mono text-[10px] tracking-[0.16em] uppercase border transition ${
+        on
+          ? 'bg-brass/15 border-brass text-brass-hi'
+          : 'border-ash/25 text-ash/60 hover:text-cream hover:border-cream/40'
+      }`}
+    >
+      {children}
+    </button>
   )
 }
 

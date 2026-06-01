@@ -329,7 +329,8 @@ io.use(async (socket, next) => {
   next()
 })
 
-const TURN_TIMER_MS = 30_000
+// Per-room turn timer now lives in room.settings.turnTimerSec (default 30 s).
+// armTurnTimer reads it directly so a host change takes effect on the next turn.
 // Grace window before an abandoned room (no connected humans) is deleted. Also
 // the reconnect window: a player who refreshes has this long to come back before
 // the room — and its game — is voided. 30s per product decision.
@@ -395,7 +396,8 @@ function armTurnTimer(room: Room) {
     if (!occ) return
     applyAction(room, occ.playerId, pick.action)
     afterTransition(room)
-  }, TURN_TIMER_MS)
+    // Per-room turn timer (default 30 s; host-configurable to 15/30/60).
+  }, Math.max(5_000, room.settings.turnTimerSec * 1000))
 }
 
 function maybeScheduleBotTurn(room: Room) {
@@ -796,6 +798,10 @@ io.on('connection', (socket) => {
         capotDoubledByContra: z.boolean().optional(),
         enableNT: z.boolean().optional(),
         enableAT: z.boolean().optional(),
+        // 15 / 30 / 60 are the meaningful presets; the bounds let any reasonable value through.
+        turnTimerSec: z.number().int().min(10).max(120).optional(),
+        // Match length in tens — 151 standard, 101 for shorter games.
+        gameTo: z.union([z.literal(101), z.literal(151)]).optional(),
       })
       .safeParse(raw ?? {})
     if (!parsed.success) return cb({ ok: false, error: 'invalid payload' })
@@ -803,6 +809,8 @@ io.on('connection', (socket) => {
     if (parsed.data.capotDoubledByContra !== undefined) next.capotDoubledByContra = parsed.data.capotDoubledByContra
     if (parsed.data.enableNT !== undefined) next.enableNT = parsed.data.enableNT
     if (parsed.data.enableAT !== undefined) next.enableAT = parsed.data.enableAT
+    if (parsed.data.turnTimerSec !== undefined) next.turnTimerSec = parsed.data.turnTimerSec
+    if (parsed.data.gameTo !== undefined) next.gameTo = parsed.data.gameTo
     room.settings = next
     cb({ ok: true })
     broadcastRoomState(room)

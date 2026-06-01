@@ -127,6 +127,12 @@ export const en: Record<MessageKey, string> = {
   'lobby.startingSoon':  'Table full — starting…',
   'lobby.rulesTitle':    'Table rules',
   'lobby.capotDouble':   'Capot is doubled by contra / re-contra',
+  'lobby.gameTo':        'Game to',
+  'lobby.gameToHint':    '101 = shorter match. 151 is the standard.',
+  'lobby.turnTimer':     'Turn timer',
+  'lobby.contracts':     'Allowed contracts',
+  'suit.NT.short':       'NT',
+  'suit.AT.short':       'AT',
   'lobby.capotDoubleHint':'Off = the 90-point bonus stays fixed',
 
   'table.room':          'Room',

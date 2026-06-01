@@ -5,10 +5,13 @@ import {
   type Action,
   type Card,
   type GameSnapshot,
+  type Multiplier,
   type PlayerView,
   type RoomSettings,
+  type Score,
   type Seat,
   type Suit,
+  type Team,
   type Trick,
 } from '@belot/shared'
 import { applyBid, bidLegal, startBidding, type BiddingState } from './bidding.js'
@@ -383,11 +386,14 @@ function finalizeHand(snap: GameSnapshot): GameSnapshot {
   }
 
   // ── End-of-game detection. ─────────────────────────────────────────────────
-  // Match ends when one team hits the target AND has strictly more tens than the other.
-  // If both reach target same hand, higher wins; if they tie, play continues.
   const target = snap.settings.gameTo
-  const someoneReached = newScore.NS >= target || newScore.EW >= target
-  const gameOver = someoneReached && newScore.NS !== newScore.EW
+  const gameOver = isMatchOver(
+    newScore,
+    result.capot,
+    snap.multiplier,
+    snap.settings.capotDoubledByContra,
+    target,
+  )
 
   // Capture a result snapshot for the UI to show after the hand.
   const lastHandResult: NonNullable<GameSnapshot['lastHandResult']> = {
@@ -413,6 +419,29 @@ function finalizeHand(snap: GameSnapshot): GameSnapshot {
     lastHandResult,
     handHistory: [...snap.handHistory, lastHandResult],
   }
+}
+
+// Per belot.bg: "С капо не се излиза" — a team cannot win the match on the
+// strength of a pure capot bonus. If the only reason the leading team crossed
+// the target this hand was the +90 capot (multiplied by contra/recontra when
+// applicable), the match continues; another hand is played. Otherwise standard
+// rules apply (first team to `gameTo` tens with a strict lead wins).
+export function isMatchOver(
+  newScore: Score,
+  capot: Team | null,
+  multiplier: Multiplier,
+  capotDoubledByContra: boolean,
+  gameTo: number,
+): boolean {
+  const reached = newScore.NS >= gameTo || newScore.EW >= gameTo
+  if (!reached || newScore.NS === newScore.EW) return false
+  const winner: Team = newScore.NS > newScore.EW ? 'NS' : 'EW'
+  if (capot === winner) {
+    const capotMult = capotDoubledByContra ? multiplier : 1
+    const capotTens = 9 * capotMult // 90 raw / 10, no rounding (90 % 10 === 0)
+    if (newScore[winner] - capotTens < gameTo) return false // capot alone pushed them over
+  }
+  return true
 }
 
 export function advanceHand(snap: GameSnapshot): GameSnapshot | EngineError {

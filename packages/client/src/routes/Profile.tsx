@@ -15,6 +15,7 @@ import {
   type ProfileRow,
   type ProfileStats,
 } from '../lib/stats.js'
+import { usePrivatePage } from '../lib/seo.js'
 
 // Profile page — per design spec §13 ПРОФИЛ.
 // Now wired to public.profiles + public.matches (Phase C).
@@ -23,6 +24,8 @@ import {
 export function Profile() {
   const t = useT()
   const { username = '' } = useParams<{ username: string }>()
+  // Personal user data — noindex until profiles have meaningful public content.
+  usePrivatePage(username || t('nav.profile'))
   const myProfile = useAuth((s) => s.profile)
 
   const [profile, setProfile] = useState<ProfileRow | null>(null)

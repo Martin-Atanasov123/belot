@@ -2,12 +2,14 @@ import { motion } from 'framer-motion'
 import { PublicNav } from '../components/PublicNav.js'
 import { Flourish, Monogram } from '../components/Ornaments.js'
 import { useT } from '../i18n/index.js'
+import { usePublicPage } from '../lib/seo.js'
 
 // Premium page — per spec §3. Two pricing cards (Free vs Premium), feature
 // comparison, FAQ accordion (TODO). Brass border on Premium card per spec.
 // Billing not wired — clicking upgrade shows a coming-soon notice.
 export function Premium() {
   const t = useT()
+  usePublicPage('Премиум абонамент — белот без ограничения', '/premium')
   const features: Array<{ label: string; free: boolean; paid: boolean }> = [
     { label: 'Casual игри без ограничения', free: true, paid: true },
     { label: 'Игра с приятели чрез линк', free: true, paid: true },

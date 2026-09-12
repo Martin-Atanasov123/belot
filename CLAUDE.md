@@ -1,5 +1,5 @@
 # CLAUDE.md — Belot Online Master Operating System
-# Version 2.0 — Game Truth + Brand + Design + UX + Growth + Retention + Monetization
+# Version 2.1 — Game Truth + Brand + Design + UX + Growth + Retention + Monetization + Strategic Reality
 
 You are not building a generic card game. You are building **the most atmospheric, trustworthy,
 and respectful Bulgarian belot platform that has ever existed in a browser** — a salon-quality
@@ -61,6 +61,162 @@ Tests are documentation; they should survive refactors of the math.
 `feat(scope):`, `fix(scope):`, `chore:`, `refactor:`, `docs:`. One logical change per commit.
 The post-commit hook auto-pushes `main` → Render (server) and Netlify (client) auto-deploy.
 Therefore: **the working tree on `main` is always deployable**. Never commit broken builds.
+
+---
+
+## 0.5. STRATEGIC REALITY — READ BEFORE ANY NEW WORK
+
+This section overrides personal enthusiasm. It exists because solo founders building 12-month side
+projects against well-funded incumbents abandon them around month 5–8 — and every line of code
+spent on polish is a line not spent on distribution. The rest of this document is the brand brief
+and operating system; **this section is the strategy**.
+
+### 0.5.1 — Honest market position
+
+- **BG TAM:** ~150k MAU addressable (belot.bg owns ~70% of ~500–800k total). Demographic is
+  shrinking 2–4%/year.
+- **belot.bg:** 2M+ registered users, native mobile apps, paid acquisition, gambling-company
+  budget. **You will not unseat them in BG in 1–3 years.** Realistic BG ambition is #2 with
+  a small but loyal slice.
+- **FR belote market:** 5M+ players across France, Belgium, Switzerland, Quebec, Maghreb.
+  Competitors (BiboBelote, Belote.com) are beatable on UI and "no ads". **This is the real
+  opportunity.** French users pay for premium; Bulgarian users mostly don't.
+- **Realistic revenue ceiling (success scenario):** ~€10–12k MRR at 80k MAU after 36 months.
+  This is bootstrap side-income, not a startup outcome. **Do not quit a day job for this.**
+
+### 0.5.2 — The pivot rule
+
+**By month 3 the product must be live on a `.fr` domain with at least the landing page and rules
+fully translated.** If month-3 retention (D7) on BG is < 15%, the FR market becomes the only
+focus. BG continues to receive bug fixes; new feature work goes to FR.
+
+### 0.5.3 — Distribution-first rule
+
+Every commit answers the question: *"Does this shorten the time to my first 100 organic users,
+or improve D7 retention?"* If neither, the commit is suspect — even if the code is correct,
+even if the test is green, even if it feels good to write.
+
+Engineering improvements are not free. The cost is the marketing experiment you didn't run that
+week.
+
+### 0.5.4 — The retention gate (hard stop)
+
+Until D7 retention reaches **15%**, the only allowed product work is:
+- bug fixes for crashes / data loss
+- onboarding shortenings (faster first game, fewer clicks)
+- single-player solo-vs-bots (kills the cold-start bounce — see 0.5.5)
+- pre-rendering / SEO basics
+
+**Forbidden until D7 ≥ 15%:** tournament UI polish, new bot difficulties, cosmetics shop,
+advanced stats, ranked seasons, replay export, native mobile wrappers. They feel productive.
+They do not move the only metric that matters at this stage.
+
+### 0.5.5 — The cold-start problem is existential
+
+A new visitor hits the site. Server is asleep (Render free tier → 20–30s cold start). They
+click "Бързо намиране". The button does nothing visible. They leave. **This is killing every
+acquisition channel before it can work.**
+
+The fix is not paying for Render Starter (though that helps). The fix is: **the first game must
+be playable in under 3 seconds, offline, against bots, with zero server dependency.** Only
+when the user has finished one bot game and wants to play another do we ask them to wait for
+the server.
+
+This is P0. Above tournaments, above ranked, above cosmetics. Until it's done, paid traffic
+is wasted traffic.
+
+### 0.5.6 — The stop list (do not work on these)
+
+- ❌ Engine architecture improvements past current quality (it's already over-engineered for scale)
+- ❌ Monorepo tooling, graphify, knowledge-graph maintenance
+- ❌ New hackathon submissions (Stardance was the last)
+- ❌ Bot AI improvements past "medium" difficulty (no user has asked)
+- ❌ Brand-name perfectionism / logo iteration past one chosen direction
+- ❌ E2E test infrastructure that is not gating an actual bug
+- ❌ Lobby visual polish iteration #4
+- ❌ "What if we added X game-mode" exploration
+- ❌ Reading CLAUDE.md as a strategy document — it's a brand brief
+
+### 0.5.7 — Marketing channels (in priority order)
+
+1. **Bulgarian Facebook diaspora groups** (free, targeted, high intent, weekly cadence)
+2. **In-app referral after victory** — auto-generate a 4:5 PNG share card for Viber / Messenger
+3. **TikTok belot content** (2 videos/week — fast belot games + brass UI + Bulgarian voice-over)
+4. **French SEO via long-tail content** (40k/mo "belote en ligne", less competitive than BG)
+5. **Café QR codes** in BG (guerrilla — small but real users; bring a print-out, ask the owner)
+
+Paid acquisition is forbidden until €1k MRR. Influencer partnerships forbidden until €2k MRR.
+
+### 0.5.8 — Custom domain is week-1 work
+
+Netlify subdomains are SEO-poisoned. Buy `belotique.com` (or `lesalonbelote.com`) immediately,
+wire DNS through Netlify, add to GSC. Total cost: ~€12/year. Time: 30 minutes. Impact:
+unblocks every other SEO action in this document.
+
+### 0.5.9 — Pre-render the public routes
+
+Google's first crawl of an SPA sees `<div id="root"></div>` and classifies the page as thin
+content. Status "Crawled — currently not indexed" follows. **Pre-render `/`, `/rules`,
+`/registracia`, `/vlez`** with `vite-plugin-prerender` or Netlify's prerender feature. Add
+`noindex` to `/tablo`, `/r/:code`, `/nastroyki` (private / dynamic).
+
+### 0.5.10 — Phase-gated roadmap (the brutal version)
+
+**Phase 1 — Survive Google indexing + first 1,000 organic users (0–3 months)**
+Custom domain · pre-rendering · solo-vs-bots offline · referral share PNG · 6 long-form BG SEO
+articles · Facebook diaspora cadence · TikTok cadence start · all uncommitted bug fixes landed.
+
+**Phase 2 — FR launch + first €100 MRR (3–6 months)**
+FR translation + `.fr` domain · Stripe Premium (cosmetics tier, €4.99/mo) · friend list +
+"play with X again" · quick-chat preset phrases · 6 long-form FR SEO articles · D7 ≥ 15% gate
+check — pivot if missed.
+
+**Phase 3 — Defensible position (6–12 months)**
+ELO + seasonal ranked (only if D7 ≥ 20%) · tournament system end-to-end · daily challenge ·
+native mobile wrappers (Capacitor) · French belote contrée variant.
+
+**Phase 4 — Realistic ambition (1–3 years)**
+#1 in FR belote (60% achievable) · #2 in BG (30%) · revenue €5–12k MRR · evaluate Casualino
+exit conversation at €100–500k.
+
+**Phase ∞ — Not on the table**
+Becoming market leader in BG · €100k MRR · raising VC · quitting day job.
+
+### 0.5.11 — Decision points (kill criteria)
+
+- **Day 90:** MAU < 500 → either pivot strategy (FR-only) or shut down. Don't bury a corpse.
+- **Day 180:** D7 retention < 15% → stop building, focus only on retention experiments.
+- **Day 365:** MRR < €100 → accept this is a hobby project, ship for love not for income.
+
+### 0.5.12 — Wrong assumptions to abandon now
+
+1. "Beautiful UI will win users." Beautiful UI doesn't drive acquisition. Friends drive acquisition.
+2. "Rules accuracy is a moat." It's table stakes. Competitors can copy in a week.
+3. "No ads is a differentiator." It's a brand positioning, not an acquisition driver.
+4. "Hackathon points are worth coding time." Stardance was a one-off ego boost. Hours would be
+   100× better spent on the first 100 real users.
+5. "Bulgarian market is the right starting point." It's the smallest, most saturated market on
+   the table. France is the real opportunity.
+6. "Good architecture will pay back later." Past a threshold, it's procrastination. You're past
+   that threshold.
+
+### 0.5.13 — Hidden risks to monitor
+
+- **Casualino legal action.** They own belot.bg. If you start eating their traffic, expect a
+  cease-and-desist on the "belot" trademark or look-and-feel. Renaming to "Belotique" is a
+  weak hedge; consult a BG IP attorney before launching paid acquisition.
+- **EU gambling regulation creep.** Once cosmetic shop + ELO + tournaments are live, someone
+  asks "is this gambling?" Stay clear of entry fees, prize pools, anything resembling wagering.
+- **Render free-tier abuse.** Cold start kills onboarding. Upgrade to Starter (€7/mo) or move
+  to Fly.io before paid traffic starts.
+- **Burnout.** 70% of solo founders abandon side projects at month 5–8 when traction underperforms.
+  Set a hard cap on weekly hours; protect Sundays; track personal energy alongside DAU.
+
+### 0.5.14 — What this section is not
+
+This is not a vision document. It is not a pitch deck. It is not a brand brief. It exists to
+make the next commit honest. If a commit would not survive the question *"how does this reach
+the first 1,000 users?"* — it is the wrong commit, no matter how clean the code.
 
 ---
 

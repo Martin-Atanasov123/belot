@@ -9,6 +9,7 @@ import { Premium } from './routes/Premium.js'
 import { Login, Signup, ForgotPassword, ResetPassword } from './routes/AuthPages.js'
 import { bootstrapAuth } from './lib/auth.js'
 import { Tablo } from './routes/Tablo.js'
+import { Solo } from './routes/Solo.js'
 import { Settings } from './routes/Settings.js'
 import { Profile } from './routes/Profile.js'
 import { Tournaments } from './routes/Tournaments.js'
@@ -76,6 +77,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route path="/reset-password" element={<ResetPassword />} />
           {/* Hub / profile / settings / tournaments — all visual-complete; DB-wired in later phases. */}
           <Route path="/tablo" element={<Tablo />} />
+          <Route path="/solo" element={<Solo />} />
           <Route path="/profil/:username" element={<Profile />} />
           <Route path="/nastroyki" element={<Settings />} />
           <Route path="/turniri" element={<Tournaments />} />

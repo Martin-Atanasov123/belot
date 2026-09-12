@@ -9,6 +9,7 @@ import { Lobby } from '../components/Lobby.js'
 import { Table } from '../components/Table.js'
 import { JoinForm } from '../components/JoinForm.js'
 import { ErrorScreen } from '../components/ErrorScreen.js'
+import { usePrivatePage } from '../lib/seo.js'
 
 type Mode = 'play' | 'spectate'
 
@@ -25,6 +26,8 @@ export function RoomRoute() {
 function RoomRouteInner() {
   const t = useT()
   const { code } = useParams<{ code: string }>()
+  // Ephemeral room — never indexed; title shows the room code.
+  usePrivatePage(code ? `${t('table.room')} ${code}` : t('table.room'))
   const [search] = useSearchParams()
   const isHost = search.get('host') === '1'
   const urlWantsSpectate = search.get('spectate') === '1'

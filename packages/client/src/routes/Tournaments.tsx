@@ -12,6 +12,7 @@ import {
   type TournamentStatus,
 } from '../lib/tournaments.js'
 import type { BracketSize } from '../lib/bracket.js'
+import { usePublicPage } from '../lib/seo.js'
 
 // Tournaments list (DB-wired). Tabs filter Upcoming / Active / Finished.
 // Authenticated users can open the "Create tournament" sheet to start a small
@@ -26,6 +27,7 @@ const TAB_STATUS_MAP: Record<Tab, TournamentStatus[]> = {
 
 export function Tournaments() {
   const t = useT()
+  usePublicPage('Турнири — белот онлайн', '/turniri')
   const session = useAuth((s) => s.session)
   const user = useAuth((s) => s.user)
   const [tab, setTab] = useState<Tab>('upcoming')

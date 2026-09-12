@@ -16,6 +16,7 @@ import {
   writeNotifPref,
 } from '../lib/notify.js'
 import type { MessageKey } from '../i18n/bg.js'
+import { usePrivatePage } from '../lib/seo.js'
 
 // Settings page — per design spec §16 НАСТРОЙКИ.
 // Tier A but minimal decoration (spec §16: "Tier A visuals (plate panels) but zero ornaments").
@@ -36,6 +37,8 @@ const TABS: Array<{ id: Tab; labelKey: MessageKey }> = [
 
 export function Settings() {
   const t = useT()
+  // Personal preferences — never indexed.
+  usePrivatePage(t('nav.settings'))
   const [tab, setTab] = useState<Tab>('profile')
 
   return (

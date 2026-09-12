@@ -72,6 +72,8 @@ export const bg = {
   'landing.nicknamePh':  'както те знаят на масата',
   'landing.create':      'Започни нова партия',
   'landing.creating':    'Подреждам масата…',
+  'landing.playSolo':    'Играй веднага срещу ботове',
+  'landing.playSoloHint':'Без чакане, направо на масата',
   'landing.quickPlay':   'Бързо намиране',
   'landing.quickPlayHint':'Срещу други играчи онлайн',
   'landing.privateRoom': 'Частна стая',
@@ -201,6 +203,11 @@ export const bg = {
   'nav.settings':        'Настройки',
   'nav.logout':          'Изход',
   'nav.dashboard':       'Табло',
+  'nav.tablo':           'Табло',
+
+  // Solo (offline vs bots) page
+  'solo.title':          'Соло срещу ботове',
+  'solo.dealing':        'Раздаваме картите…',
 
   // Authentication (spec §5–7)
   'auth.loginTitle':     'Вход в салона',
@@ -215,6 +222,9 @@ export const bg = {
   'auth.or':             'или',
   'auth.continueGoogle': 'Продължи с Google',
   'auth.continueFacebook':'Продължи с Facebook',
+  'auth.login':          'Вход',
+  'auth.signup':         'Регистрация',
+  'auth.reset':          'Нова парола',
   'auth.forgot':         'Забравена парола?',
   'auth.noAccount':      'Още нямаш сметка?',
   'auth.haveAccount':    'Вече имаш сметка?',

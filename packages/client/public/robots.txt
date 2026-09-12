@@ -1,0 +1,19 @@
+# Le Salon de Belot — robots.txt
+# Public routes are crawlable; private/dynamic routes are blocked.
+
+User-agent: *
+Allow: /
+
+# Private / personalised — no SEO value, may leak user data into cache
+Disallow: /tablo
+Disallow: /nastroyki
+Disallow: /profil/
+Disallow: /forgot-password
+Disallow: /reset-password
+
+# Ephemeral game rooms — codes are short-lived, never worth indexing
+Disallow: /r/
+Disallow: /staya/
+
+# Sitemap (update when custom domain is wired)
+Sitemap: https://belot-online.netlify.app/sitemap.xml

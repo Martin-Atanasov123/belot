@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Flourish, Monogram } from '../components/Ornaments.js'
 import { PublicNav } from '../components/PublicNav.js'
 import { useI18n, useT } from '../i18n/index.js'
+import { usePublicPage } from '../lib/seo.js'
 import type { MessageKey } from '../i18n/bg.js'
 
 // Rules page — per design spec §2 ПРАВИЛА.
@@ -29,6 +30,9 @@ const SECTIONS: SectionDef[] = [
 
 export function Rules() {
   const t = useT()
+  // SEO-rich rules page. Canonical pins to /rules so /pravila alias doesn't
+  // create duplicate-content noise in Google's index.
+  usePublicPage('Правила на белот — пълно ръководство', '/rules')
   const locale = useI18n((s) => s.locale)
   const [activeId, setActiveId] = useState<string>(SECTIONS[0]!.id)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)

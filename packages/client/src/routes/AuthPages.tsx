@@ -7,6 +7,7 @@ import { useT } from '../i18n/index.js'
 import { supabase, isSupabaseConfigured } from '../lib/supabase.js'
 import { useAuth } from '../lib/auth.js'
 import type { MessageKey } from '../i18n/bg.js'
+import { usePrivatePage } from '../lib/seo.js'
 
 function authErrorKey(message: string | undefined): MessageKey {
   const m = (message ?? '').toLowerCase()
@@ -53,6 +54,8 @@ function AuthShell({
 // ─── Login ─────────────────────────────────────────────────────────────
 export function Login() {
   const t = useT()
+  // Auth pages — noindex; users land here from /vhod CTA, not from search.
+  usePrivatePage(t('auth.login'))
   const nav = useNavigate()
   const session = useAuth((s) => s.session)
   const [email, setEmail] = useState('')
@@ -126,6 +129,7 @@ export function Login() {
 // ─── Signup ────────────────────────────────────────────────────────────
 export function Signup() {
   const t = useT()
+  usePrivatePage(t('auth.signup'))
   const nav = useNavigate()
   const session = useAuth((s) => s.session)
   const [username, setUsername] = useState('')
@@ -229,6 +233,7 @@ export function Signup() {
 // ─── Forgot password ───────────────────────────────────────────────────
 export function ForgotPassword() {
   const t = useT()
+  usePrivatePage(t('auth.forgot'))
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [err, setErr] = useState<MessageKey | null>(null)
@@ -278,6 +283,7 @@ export function ForgotPassword() {
 // ─── Reset password ────────────────────────────────────────────────────
 export function ResetPassword() {
   const t = useT()
+  usePrivatePage(t('auth.reset'))
   const nav = useNavigate()
   const [pwd, setPwd] = useState('')
   const [pwd2, setPwd2] = useState('')

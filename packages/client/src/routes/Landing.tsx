@@ -187,20 +187,35 @@ export function Landing() {
               />
             </label>
 
-            {/* Primary CTA — quick match. Pools simultaneous searchers into one
-                lobby instead of fragmenting them into separate rooms. */}
+            {/* Primary CTA — solo vs bots. Zero server dependency, plays
+                instantly in-browser. Kills the cold-start bounce for first-time
+                visitors (CLAUDE.md § 0.5.5). */}
+            <button
+              onClick={() => {
+                if (!persistNick()) return
+                nav('/solo')
+              }}
+              className="btn-brass w-full mb-3 text-base py-3.5"
+            >
+              {t('landing.playSolo')}
+            </button>
+            <p className="font-display italic text-cream/55 text-[11px] text-center -mt-1 mb-5">
+              {t('landing.playSoloHint')}
+            </p>
+
+            {/* Secondary CTA — quick match with other online players. */}
             <button
               onClick={onQuickPlay}
               disabled={searchingMatch}
-              className="btn-brass w-full mb-3 text-base py-3.5"
+              className="btn-ghost w-full mb-2 py-3"
             >
               {searchingMatch ? t('landing.searching') : t('landing.quickPlay')}
             </button>
-            <p className="font-display italic text-cream/55 text-[11px] text-center -mt-1 mb-5">
+            <p className="font-display italic text-cream/55 text-[11px] text-center mb-3">
               {t('landing.quickPlayHint')}
             </p>
 
-            {/* Secondary CTA — private room. Friends gather via the shared code. */}
+            {/* Tertiary CTA — private room. Friends gather via the shared code. */}
             <button
               onClick={onCreate}
               disabled={creatingPrivate}

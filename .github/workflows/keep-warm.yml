@@ -1,0 +1,51 @@
+# Keep the Render server warm.
+#
+# Render's free tier sleeps after ~15 minutes of no requests, causing a 20-30s
+# cold start for the next visitor. That kills first-impression conversions
+# (see CLAUDE.md § 0.5.5 — "the cold-start problem is existential").
+#
+# This workflow pings /health every 10 minutes. GitHub Actions cron has ~5-15
+# minutes of drift on the free tier, so 10-minute intervals reliably stay under
+# Render's sleep threshold.
+#
+# ── Render free tier quota ────────────────────────────────────────────────────
+# Free web services get 750 instance hours per month. 30 days * 24 h = 720 h,
+# so keeping ONE service always-on fits. If you add a second free service,
+# quota is shared — check Render → Usage. Upgrade path: Render Starter ($7/mo,
+# no cold start, no ping needed, no quota).
+#
+# ── Configuration ─────────────────────────────────────────────────────────────
+# Set the server URL as a repository variable so this file doesn't need editing
+# when the domain changes:
+#   GitHub repo → Settings → Secrets and variables → Actions → Variables
+#   Add: SERVER_URL = https://belot-server.onrender.com
+#
+# The default below is used when the variable isn't set — update it if the
+# Render service name is different.
+
+name: keep-warm
+
+on:
+  schedule:
+    # Every 10 minutes. Cron minutes-0-59/10 = 0,10,20,30,40,50.
+    - cron: '*/10 * * * *'
+  # Manual trigger from Actions tab for testing.
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Ping /health
+        env:
+          SERVER_URL: ${{ vars.SERVER_URL || 'https://belot-server.onrender.com' }}
+        run: |
+          set -eu
+          echo "Pinging $SERVER_URL/health"
+          # -f fails on 4xx/5xx, -sS shows errors quietly, --max-time caps cold-start wait.
+          # 60s is enough for even the worst Render cold start; ping succeeds after that
+          # and the server is warm for the next 15 min.
+          curl -fsS --max-time 60 "$SERVER_URL/health" | tee /dev/stderr
+          echo ""
+          echo "Server is warm."

@@ -3,9 +3,47 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>Le Salon de Belot — Белот онлайн</title>
+
+    <!--
+      Brand: "Le Salon de Belot" — Bulgarian belot online.
+      All canonical/OG/JSON-LD URLs use the current Netlify host. When a custom
+      domain is wired, search-and-replace `https://belot-online.netlify.app` in
+      this file, public/robots.txt and public/sitemap.xml — three files only.
+    -->
+
+    <title>Le Salon de Belot — Безплатен онлайн белот с приятели</title>
+    <meta
+      name="description"
+      content="Класическият български белот в реално време — играй безплатно с приятели или срещу ботове. Без реклами, без регистрация. Точните правила на belot.bg."
+    />
     <meta name="theme-color" content="#0a0f0d" />
-    <meta name="description" content="Класическият белот в реално време — за приятели, в нов салон." />
+    <meta name="robots" content="index,follow,max-image-preview:large" />
+    <meta name="googlebot" content="index,follow" />
+    <meta name="author" content="Le Salon de Belot" />
+    <link rel="canonical" href="https://belot-online.netlify.app/" />
+
+    <!-- Open Graph (Facebook, Viber, Messenger, LinkedIn share cards) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Le Salon de Belot" />
+    <meta property="og:title" content="Le Salon de Belot — Безплатен онлайн белот" />
+    <meta
+      property="og:description"
+      content="Играй белот с приятели в реално време. Без реклами, без регистрация. Точните правила, които познаваш."
+    />
+    <meta property="og:url" content="https://belot-online.netlify.app/" />
+    <meta property="og:image" content="https://belot-online.netlify.app/icon.svg" />
+    <meta property="og:locale" content="bg_BG" />
+
+    <!-- Twitter / X card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Le Salon de Belot — Безплатен онлайн белот" />
+    <meta
+      name="twitter:description"
+      content="Класическият български белот в реално време. Без реклами, без регистрация."
+    />
+    <meta name="twitter:image" content="https://belot-online.netlify.app/icon.svg" />
+
+    <!-- PWA + iOS -->
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="apple-touch-icon" href="/icon.svg" />
@@ -13,9 +51,76 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Белот" />
     <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- Preconnect to the API/socket host to shave the first round-trip -->
+    <link rel="preconnect" href="https://belot-server.onrender.com" crossorigin />
+    <link rel="dns-prefetch" href="https://belot-server.onrender.com" />
+
+    <!--
+      JSON-LD: WebSite + VideoGame (Schema.org).
+      Helps Google render rich results and tells AI crawlers what this site is.
+      Belot is a card game → schema:Game / schema:VideoGame is the right fit.
+    -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": "https://belot-online.netlify.app/#website",
+          "url": "https://belot-online.netlify.app/",
+          "name": "Le Salon de Belot",
+          "alternateName": "Белот онлайн",
+          "description": "Безплатен онлайн белот в реално време — с приятели или срещу ботове. Без реклами.",
+          "inLanguage": "bg-BG",
+          "publisher": { "@id": "https://belot-online.netlify.app/#org" },
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": "https://belot-online.netlify.app/?q={search_term_string}",
+            "query-input": "required name=search_term_string"
+          }
+        },
+        {
+          "@type": "Organization",
+          "@id": "https://belot-online.netlify.app/#org",
+          "name": "Le Salon de Belot",
+          "url": "https://belot-online.netlify.app/",
+          "logo": "https://belot-online.netlify.app/icon.svg"
+        },
+        {
+          "@type": "VideoGame",
+          "name": "Le Salon de Belot",
+          "alternateName": "Belot Online",
+          "description": "Класическият български белот за четирима играчи — в реално време, в браузъра. Точните правила на belot.bg.",
+          "url": "https://belot-online.netlify.app/",
+          "image": "https://belot-online.netlify.app/icon.svg",
+          "inLanguage": "bg-BG",
+          "genre": "Card Game",
+          "gamePlatform": ["Web Browser", "PWA"],
+          "playMode": ["MultiPlayer", "SinglePlayer"],
+          "numberOfPlayers": {
+            "@type": "QuantitativeValue",
+            "value": 4
+          },
+          "applicationCategory": "GameApplication",
+          "operatingSystem": "Any",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "BGN"
+          }
+        }
+      ]
+    }
+    </script>
   </head>
   <body class="bg-ink text-cream font-sans">
     <div id="root"></div>
+    <noscript>
+      <p style="padding:2rem;font-family:sans-serif;color:#f4eccb;background:#0a0f0d;">
+        Le Salon de Belot изисква включен JavaScript. Моля, включи го от настройките на браузъра.
+      </p>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

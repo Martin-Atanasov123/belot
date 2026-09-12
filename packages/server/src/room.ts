@@ -4,6 +4,7 @@ import {
   apply,
   autoPickOnTimeout,
   hasPendingTrick,
+  pickBotBid,
   pickBotCard,
   isError,
   newMatch,
@@ -12,16 +13,12 @@ import {
   resolveTrick,
 } from '@belot/engine'
 import {
-  bidRank,
   DEFAULT_SETTINGS,
   type Action,
-  type BidContract,
-  type Card,
   type GameSnapshot,
   type PlayerView,
   type RoomSettings,
   type Seat,
-  type Suit,
 } from '@belot/shared'
 
 export type SeatOccupant = {
@@ -356,135 +353,13 @@ export function isBotsTurn(room: Room): boolean {
   return !!occ?.isBot
 }
 
-// ── Bot bidding heuristic ──────────────────────────────────────────────
-// Score what each potential contract would yield with the seat's 5-card hand.
-// Higher = stronger. The thresholds below decide whether to bid or pass.
-
-const TRUMP_VAL: Record<string, number> = {
-  J: 20, '9': 14, A: 11, '10': 10, K: 4, Q: 3, '8': 0, '7': 0,
-}
-const PLAIN_VAL: Record<string, number> = {
-  A: 11, '10': 10, K: 4, Q: 3, J: 2, '9': 0, '8': 0, '7': 0,
-}
-
-function evalContract(hand: readonly Card[], contract: BidContract): number {
-  // Crude evaluation: point value of the hand if this contract were played.
-  // Adds a bonus for length in the trump suit (so 4+ of a suit is preferred for that suit's bid).
-  if (contract === 'NT') {
-    return hand.reduce((s, c) => s + (PLAIN_VAL[c.rank] ?? 0), 0)
-  }
-  if (contract === 'AT') {
-    return hand.reduce((s, c) => s + (TRUMP_VAL[c.rank] ?? 0), 0)
-  }
-  // Suit trump (C/D/H/S):
-  const trumpSuit = contract as Suit
-  let score = 0
-  let lengthInTrump = 0
-  for (const c of hand) {
-    if (c.suit === trumpSuit) {
-      score += TRUMP_VAL[c.rank] ?? 0
-      lengthInTrump += 1
-    } else {
-      score += PLAIN_VAL[c.rank] ?? 0
-    }
-  }
-  // Length bonus: 4+ trump = +6, 5 trump = +12.
-  if (lengthInTrump >= 5) score += 12
-  else if (lengthInTrump >= 4) score += 6
-  return score
-}
-
-function lastBidContract(history: GameSnapshot['bidHistory']): BidContract | null {
-  for (let i = history.length - 1; i >= 0; i--) {
-    const h = history[i]!
-    if (h.type === 'BID') return h.contract
-  }
-  return null
-}
-
-// Decide a bidding action for the bot whose turn it is.
-function decideBotBid(room: Room): Action {
-  const snap = room.snapshot!
-  const seat = snap.turn
-  const passAction: Action = { type: 'PASS', seat }
-  const hand = snap.hands[seat]
-  const settings = snap.settings
-
-  // Allowed contracts at this point: must be strictly higher than current bid.
-  const last = lastBidContract(snap.bidHistory)
-  const minIdx = last ? bidRank(last) + 1 : 0
-  const options: BidContract[] = (['C', 'D', 'H', 'S', 'NT', 'AT'] as BidContract[])
-    .slice(minIdx)
-    .filter((c) => (c !== 'NT' || settings.enableNT) && (c !== 'AT' || settings.enableAT))
-
-  if (options.length === 0) return passAction
-
-  // Score every option; pick the strongest.
-  const scored = options.map((c) => ({ c, s: evalContract(hand, c) }))
-  scored.sort((a, b) => b.s - a.s)
-  const best = scored[0]!
-
-  // Thresholds — be reasonably selective. 5-card hand maxes ~60-70.
-  // J + 9 of a suit alone is 34; J + good supporters typically reaches ~40+.
-  let threshold = 40
-  if (best.c === 'NT') threshold = 54
-  if (best.c === 'AT') threshold = 58
-
-  // Difficulty shift: easy bots are timid (rarely bid); hard bots are
-  // aggressive (lower bar). Medium keeps the historical numbers.
-  const diff = room.settings.botDifficulty
-  if (diff === 'easy') threshold += 12
-  else if (diff === 'hard') threshold -= 6
-
-  // Raising over an existing bid is high-risk → demand a bigger margin.
-  if (last) threshold += 8
-
-  // A pinch of randomness so the bot isn't perfectly predictable. ±4 wobble.
-  // Uses the snapshot's seed (deterministic per hand+seat) so behaviour is replay-safe.
-  const wobbleSeed = (snap.rngSeed ^ (seat * 7919)) >>> 0
-  const wobble = ((wobbleSeed % 9) - 4) // -4..+4
-  const effectiveScore = best.s + wobble
-
-  // Even meeting the threshold, occasionally pass (~10%) to feel less robotic.
-  const passDie = (wobbleSeed >>> 4) % 100
-  const occasionallyPass = passDie < 10
-
-  if (effectiveScore >= threshold && !occasionallyPass) {
-    return { type: 'BID', seat, contract: best.c }
-  }
-
-  // Contra: if opponents have bid and our defending hand is strong, threaten contra.
-  // Cheap heuristic: 2+ Jacks AND 1+ Ace, against an opponent's bid. Easy bots
-  // skip contra entirely — that's a tactical move you only get from medium up.
-  if (last && snap.multiplier === 1 && diff !== 'easy') {
-    let lastBidSeat: Seat | null = null
-    for (let i = snap.bidHistory.length - 1; i >= 0; i--) {
-      const h = snap.bidHistory[i]!
-      if (h.type === 'BID') { lastBidSeat = h.seat; break }
-    }
-    if (lastBidSeat !== null) {
-      const lastTeam = (lastBidSeat === 0 || lastBidSeat === 2) ? 'NS' : 'EW'
-      const myTeam = (seat === 0 || seat === 2) ? 'NS' : 'EW'
-      if (lastTeam !== myTeam) {
-        const jacks = hand.filter((c) => c.rank === 'J').length
-        const aces = hand.filter((c) => c.rank === 'A').length
-        const tens = hand.filter((c) => c.rank === '10').length
-        // Need very strong defending hand: 3+ honour cards (J/9/A/10) including ≥1 Jack.
-        if (jacks >= 2 && (aces + tens) >= 2) {
-          return { type: 'CONTRA', seat }
-        }
-      }
-    }
-  }
-
-  return passAction
-}
-
-// Bot policy: smart bidding during BIDDING; lowest-value legal card during play.
+// Bot policy: smart bidding during BIDDING (engine helper), difficulty-tuned
+// card play during PLAYING. Both helpers are pure engine functions so the
+// client's offline solo-vs-bots mode uses the exact same logic.
 export function botAction(room: Room): { seat: Seat; action: Action } | null {
   if (!room.snapshot) return null
   if (room.snapshot.phase === 'BIDDING') {
-    return { seat: room.snapshot.turn, action: decideBotBid(room) }
+    return { seat: room.snapshot.turn, action: pickBotBid(room.snapshot, room.settings.botDifficulty) }
   }
   if (room.snapshot.phase === 'PLAYING') {
     // Difficulty-tuned card picker (engine helper). Falls back to the lowest

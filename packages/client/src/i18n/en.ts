@@ -73,6 +73,8 @@ export const en: Record<MessageKey, string> = {
   'landing.nicknamePh':  'how you’re known at the table',
   'landing.create':      'Begin a new game',
   'landing.creating':    'Setting the table…',
+  'landing.playSolo':    'Play now against bots',
+  'landing.playSoloHint':'No wait — straight to the table',
   'landing.quickPlay':   'Quick match',
   'landing.quickPlayHint':'Play against others online',
   'landing.privateRoom': 'Private room',
@@ -202,6 +204,11 @@ export const en: Record<MessageKey, string> = {
   'nav.settings':        'Settings',
   'nav.logout':          'Log out',
   'nav.dashboard':       'Hub',
+  'nav.tablo':           'Hub',
+
+  // Solo (offline vs bots) page
+  'solo.title':          'Solo vs bots',
+  'solo.dealing':        'Dealing the cards…',
 
   // Authentication
   'auth.loginTitle':     'Enter the salon',
@@ -216,6 +223,9 @@ export const en: Record<MessageKey, string> = {
   'auth.or':             'or',
   'auth.continueGoogle': 'Continue with Google',
   'auth.continueFacebook':'Continue with Facebook',
+  'auth.login':          'Log in',
+  'auth.signup':         'Sign up',
+  'auth.reset':          'New password',
   'auth.forgot':         'Forgot password?',
   'auth.noAccount':      'No account yet?',
   'auth.haveAccount':    'Already have an account?',

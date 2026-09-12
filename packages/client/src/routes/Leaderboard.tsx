@@ -6,12 +6,14 @@ import { Flourish, Monogram } from '../components/Ornaments.js'
 import { useT } from '../i18n/index.js'
 import { useAuth } from '../lib/auth.js'
 import { fetchLeaderboard, type LeaderboardRow, type LeaderboardScope } from '../lib/stats.js'
+import { usePublicPage } from '../lib/seo.js'
 
 // Leaderboard page — per spec §4 КЛАСАЦИЯ.
 // Tier A (atmospheric). Brass underline on active tab, no background highlight.
 // Numbers in JetBrains Mono. Wired to Supabase via `lib/stats.ts`.
 export function Leaderboard() {
   const t = useT()
+  usePublicPage('Класация на играчите — белот', '/klasacia')
   const profile = useAuth((s) => s.profile)
   const [scope, setScope] = useState<LeaderboardScope>('weekly')
   const [rows, setRows] = useState<LeaderboardRow[] | null>(null)

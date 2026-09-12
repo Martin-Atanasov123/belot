@@ -26,6 +26,7 @@ import {
   type BracketSize,
 } from '../lib/bracket.js'
 import { supabase } from '../lib/supabase.js'
+import { usePublicPage } from '../lib/seo.js'
 
 // Tournament detail page. Three states drive the UI:
 //   - registration:     show register button + participants list
@@ -37,6 +38,8 @@ import { supabase } from '../lib/supabase.js'
 export function TournamentDetail() {
   const t = useT()
   const { id = '' } = useParams<{ id: string }>()
+  // Public tournament page — indexable; title updated when row loads.
+  usePublicPage('Турнир — белот')
   const nav = useNavigate()
   const session = useAuth((s) => s.session)
   const user = useAuth((s) => s.user)

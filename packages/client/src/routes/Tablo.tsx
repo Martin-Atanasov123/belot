@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { PublicNav } from '../components/PublicNav.js'
 import { CornerOrnament, Flourish, Monogram } from '../components/Ornaments.js'
+import { usePrivatePage } from '../lib/seo.js'
 import { createRoom } from '../lib/api.js'
 import { getNickname, getPlayerIdFor } from '../lib/identity.js'
 import { useAuth } from '../lib/auth.js'
@@ -24,6 +25,8 @@ import {
 // TODO when auth lands: gate behind `useAuth()`; pull real stats from DB.
 export function Tablo() {
   const t = useT()
+  // Personalised hub — never indexed.
+  usePrivatePage(t('nav.tablo'))
   const nav = useNavigate()
   const session = useAuth((s) => s.session)
   const profile = useAuth((s) => s.profile)

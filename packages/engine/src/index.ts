@@ -6,3 +6,5 @@ export * from './bidding.js'
 export * from './announcements.js'
 export * from './scoring.js'
 export * from './match.js'
+
+export * from './bot.js'

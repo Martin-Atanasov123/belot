@@ -18,7 +18,7 @@
 # Set the server URL as a repository variable so this file doesn't need editing
 # when the domain changes:
 #   GitHub repo → Settings → Secrets and variables → Actions → Variables
-#   Add: SERVER_URL = https://belot-server.onrender.com
+#   Add: SERVER_URL = https://belot-rv09.onrender.com
 #
 # The default below is used when the variable isn't set — update it if the
 # Render service name is different.
@@ -39,7 +39,7 @@ jobs:
     steps:
       - name: Ping /health
         env:
-          SERVER_URL: ${{ vars.SERVER_URL || 'https://belot-server.onrender.com' }}
+          SERVER_URL: ${{ vars.SERVER_URL || 'https://belot-rv09.onrender.com' }}
         run: |
           set -eu
           echo "Pinging $SERVER_URL/health"

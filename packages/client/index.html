@@ -52,9 +52,27 @@
     <meta name="apple-mobile-web-app-title" content="Белот" />
     <meta name="mobile-web-app-capable" content="yes" />
 
-    <!-- Preconnect to the API/socket host to shave the first round-trip -->
-    <link rel="preconnect" href="https://belot-server.onrender.com" crossorigin />
-    <link rel="dns-prefetch" href="https://belot-server.onrender.com" />
+    <!--
+      Fonts load in parallel with the app bundle and never block first paint.
+      Previously an @import inside index.css chained HTML -> CSS -> font CSS ->
+      font files and held rendering for ~1.2 s. media="print" + onload swaps it
+      to "all" once fetched; font-display=swap shows fallback text meanwhile.
+      Only the weights the UI actually uses (400-700) are requested.
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      media="print"
+      onload="this.media='all'"
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500;1,600;1,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap&subset=cyrillic,cyrillic-ext,latin"
+    />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500;1,600;1,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap&subset=cyrillic,cyrillic-ext,latin"
+      />
+    </noscript>
 
     <!--
       JSON-LD: WebSite + VideoGame (Schema.org).
